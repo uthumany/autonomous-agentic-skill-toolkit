@@ -1,0 +1,34 @@
+{
+  "name": "autonomous-agentic-skill-toolkit",
+  "version": "0.1.0",
+  "description": "Open-source autonomous testing skill for web apps, mobile apps, desktop apps, CLI tools, and IDE workflows.",
+  "main": "src/index.js",
+  "bin": {
+    "aast": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "agentic",
+    "testing",
+    "automation",
+    "web",
+    "mobile",
+    "desktop",
+    "cli",
+    "ide",
+    "ui/ux"
+  ],
+  "author": "uthuman & co",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "playwright": "^1.44.0",
+    "axios": "^1.6.0",
+    "axe-core": "^4.9.1",
+    "lighthouse": "^11.0.0",
+    "chrome-launcher": "^1.0.0"
+  }
+}
