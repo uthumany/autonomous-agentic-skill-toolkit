@@ -40,23 +40,72 @@ Before you begin, ensure you have the following installed:
 The toolkit provides a command-line interface (CLI) accessible via `./src/index.js` or by creating a global alias. For convenience, you can add an alias to your shell configuration (e.g., `~/.bashrc`, `~/.zshrc`):
 
 ```bash
-alias aast="/path/to/your/autonomous-agentic-skill-toolkit/src/index.js"
+# Clone the repository
+git clone https://github.com/uthumany/autonomous-agentic-skill-toolkit.git
+cd autonomous-agentic-skill-toolkit
+
+# Install Node.js dependencies
+npm install
+
+# Install Playwright browsers
+npx playwright install --with-deps
+
+# (Optional) Create a global alias for convenience
+echo 'alias aast="$(pwd)/src/index.js"' >> ~/.bashrc # For Bash
+source ~/.bashrc
+# Or for Zsh:
+echo 'alias aast="$(pwd)/src/index.js"' >> ~/.zshrc # For Zsh
+source ~/.zshrc
 ```
 
 Replace `/path/to/your/autonomous-agentic-skill-toolkit` with the actual path to your cloned repository.
 
 ### Basic Commands
 
-*   **Run Web Test**: `aast test:web <url>`
-*   **Run Mobile Test**: `aast test:mobile <url> --device "iPhone 11"`
-*   **Run Desktop Test**: `aast test:desktop <appName>`
-*   **Run CLI Test**: `aast test:cli "ls -l"`
-*   **Run API Test**: `aast test:api <url> -m GET`
-*   **Run Accessibility Test**: `aast test:accessibility <url>`
-*   **Run Performance Test**: `aast test:performance <url>`
-*   **Capture Screenshot**: `aast capture:screenshot <url> -o output.png`
-*   **Record Video**: `aast record:video <url> -o output.webm -d 10`
-*   **Generate Report**: `aast generate:report <testResultsFile> -f json`
-*   **Generate Fix Prompt**: `aast generate:fix-prompt <errorDetailsFile>`
+*   **Run Web Test**:
+    ```bash
+    aast test:web https://example.com
+    ```
+*   **Run Mobile Test**:
+    ```bash
+    aast test:mobile https://example.com --device "iPhone 11"
+    ```
+*   **Run Desktop Test**:
+    ```bash
+    aast test:desktop "MyDesktopApp"
+    ```
+*   **Run CLI Test**:
+    ```bash
+    aast test:cli "ls -l"
+    ```
+*   **Run API Test**:
+    ```bash
+    aast test:api https://jsonplaceholder.typicode.com/todos/1 -m GET
+    aast test:api https://jsonplaceholder.typicode.com/posts -m POST -d '{"title": "foo", "body": "bar", "userId": 1}'
+    ```
+*   **Run Accessibility Test**:
+    ```bash
+    aast test:accessibility https://example.com
+    ```
+*   **Run Performance Test**:
+    ```bash
+    aast test:performance https://example.com
+    ```
+*   **Capture Screenshot**:
+    ```bash
+    aast capture:screenshot https://example.com -o output.png
+    ```
+*   **Record Video**:
+    ```bash
+    aast record:video https://example.com -o output.webm -d 10
+    ```
+*   **Generate Report**:
+    ```bash
+    aast generate:report ./test-results.json -f json
+    ```
+*   **Generate Fix Prompt**:
+    ```bash
+    aast generate:fix-prompt ./error-details.json
+    ```
 
 For detailed information on each command and its options, refer to the [Commands](commands.md) section.

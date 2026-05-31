@@ -6,25 +6,96 @@ This project aims to create an open-source autonomous testing skill toolkit for 
 
 ## Core Features
 
-- Frontend UI/UX validation
-- Backend/API verification
-- Form filling and auth flow testing
-- Responsive live preview for mobile, tablet, and desktop
-- Screenshot and video evidence capture
-- Accessibility, performance, and SEO audit pass
-- Error analysis and fix-prompt generation
-- Report export for PRs, issues, and release notes
-- Multi-app coverage: web, mobile, desktop, CLI, and IDE-adjacent flows
+*   **Frontend UI/UX validation**
+*   **Backend/API verification**
+*   **Form filling and auth flow testing**
+*   **Responsive live preview** for mobile, tablet, and desktop
+*   **Screenshot and video evidence capture**
+*   **Accessibility, performance, and SEO audit pass**
+*   **Error analysis and fix-prompt generation**
+*   **Report export** for PRs, issues, and release notes
+*   **Multi-app coverage**: web, mobile, desktop, CLI, and IDE-adjacent flows
 
 ## Dependencies & Prerequisites
 
-- Git
-- Node.js
-- Python 3
-- Docker
-- FFmpeg
-- Android platform-tools (adb)
-- Browser engine support (Chromium/Chrome)
+*   **Git**: For cloning the repository.
+*   **Node.js** (LTS version recommended): For running the CLI tool and managing dependencies.
+*   **Python 3**: For potential future API probes, parsing, and report generation scripts.
+*   **Docker**: For portable local runners and reproducible environments (optional, but recommended).
+*   **FFmpeg**: For video capture and media packaging.
+*   **Android platform-tools (adb)**: Required for mobile testing on Android devices.
+*   **Browser Engines**: Chromium/Chrome for Playwright and Lighthouse workflows. These will be installed automatically by Playwright.
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/uthumany/autonomous-agentic-skill-toolkit.git
+cd autonomous-agentic-skill-toolkit
+
+# Install Node.js dependencies
+npm install
+
+# Install Playwright browsers
+npx playwright install --with-deps
+
+# (Optional) Create a global alias for convenience
+echo 'alias aast="$(pwd)/src/index.js"' >> ~/.bashrc # For Bash
+source ~/.bashrc
+# Or for Zsh:
+echo 'alias aast="$(pwd)/src/index.js"' >> ~/.zshrc # For Zsh
+source ~/.zshrc
+```
+
+## Usage
+
+### Basic Commands
+
+*   **Run Web Test**:
+    ```bash
+    aast test:web https://example.com
+    ```
+*   **Run Mobile Test**:
+    ```bash
+    aast test:mobile https://example.com --device "iPhone 11"
+    ```
+*   **Run Desktop Test**:
+    ```bash
+    aast test:desktop "MyDesktopApp"
+    ```
+*   **Run CLI Test**:
+    ```bash
+    aast test:cli "ls -l"
+    ```
+*   **Run API Test**:
+    ```bash
+    aast test:api https://jsonplaceholder.typicode.com/todos/1 -m GET
+    aast test:api https://jsonplaceholder.typicode.com/posts -m POST -d '{"title": "foo", "body": "bar", "userId": 1}'
+    ```
+*   **Run Accessibility Test**:
+    ```bash
+    aast test:accessibility https://example.com
+    ```
+*   **Run Performance Test**:
+    ```bash
+    aast test:performance https://example.com
+    ```
+*   **Capture Screenshot**:
+    ```bash
+    aast capture:screenshot https://example.com -o output.png
+    ```
+*   **Record Video**:
+    ```bash
+    aast record:video https://example.com -o output.webm -d 10
+    ```
+*   **Generate Report**:
+    ```bash
+    aast generate:report ./test-results.json -f json
+    ```
+*   **Generate Fix Prompt**:
+    ```bash
+    aast generate:fix-prompt ./error-details.json
+    ```
 
 ## Integrations
 
