@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+*.png
+*.webm
+report_*.json
+report_*.markdown
+examples/example_com_screenshot.png
+examples/example_com_mobile_screenshot.png
