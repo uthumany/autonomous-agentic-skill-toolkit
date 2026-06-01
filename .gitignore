@@ -6,3 +6,14 @@ report_*.json
 report_*.markdown
 examples/example_com_screenshot.png
 examples/example_com_mobile_screenshot.png
+
+# New module output directories
+aast-flakiness-results/
+aast-parallel-results/
+aast-visual-baselines/
+aast-visual-results/
+aast-generated-assertions/
+aast-traces/
+aast-provision-results/
+*.aastreplay
+.env

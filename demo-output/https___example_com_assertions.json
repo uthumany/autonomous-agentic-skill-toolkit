@@ -1,0 +1,101 @@
+{
+  "url": "https://example.com",
+  "generatedAt": "2026-06-01T02:09:12.953Z",
+  "assertions": [
+    {
+      "type": "api-status",
+      "severity": "high",
+      "invariant": "GET https://api.example.com/users always returns 200",
+      "endpoint": "https://api.example.com/users",
+      "expectedStatus": 200,
+      "confidence": 0.7,
+      "evidenceCount": 2
+    },
+    {
+      "type": "api-schema",
+      "severity": "medium",
+      "invariant": "https://api.example.com/users returns consistent schema",
+      "endpoint": "https://api.example.com/users",
+      "expectedSchema": {
+        "type": "object",
+        "keys": {
+          "name": "string",
+          "id": "number"
+        }
+      },
+      "confidence": 0.6000000000000001,
+      "evidenceCount": 2
+    },
+    {
+      "type": "api-status",
+      "severity": "high",
+      "invariant": "GET https://api.example.com/auth always returns 401",
+      "endpoint": "https://api.example.com/auth",
+      "expectedStatus": 401,
+      "confidence": 0.6,
+      "evidenceCount": 1
+    },
+    {
+      "type": "form-required",
+      "severity": "high",
+      "invariant": "Form at /login requires fields: email, pass",
+      "action": "/login",
+      "method": "POST",
+      "requiredFields": [
+        "email",
+        "pass"
+      ],
+      "confidence": 0.85,
+      "evidenceCount": 1
+    },
+    {
+      "type": "page-structure",
+      "severity": "low",
+      "invariant": "Page \"Home\" has 1 heading(s)",
+      "url": "https://example.com",
+      "expectedHeadings": [
+        "H1: Welcome"
+      ],
+      "confidence": 0.7,
+      "evidenceCount": 1
+    },
+    {
+      "type": "api-error",
+      "severity": "high",
+      "invariant": "POST https://api.example.com/auth returned error status 401",
+      "endpoint": "https://api.example.com/auth",
+      "expectedStatus": "< 401",
+      "confidence": 0.9,
+      "evidenceCount": 1
+    },
+    {
+      "type": "console-error",
+      "severity": "medium",
+      "invariant": "Console error detected: \"Uncaught TypeError: Cannot read property of null\"",
+      "confidence": 0.8,
+      "evidenceCount": 1
+    },
+    {
+      "type": "accessibility",
+      "severity": "medium",
+      "invariant": "1 image(s) missing alt text on https://example.com",
+      "url": "https://example.com",
+      "confidence": 0.95,
+      "evidenceCount": 1
+    }
+  ],
+  "testCode": "// Auto-generated assertions for https://example.com\n// Generated at 2026-06-01T02:09:12.957Z\n// Confidence threshold: 0.5\n\nconst { chromium } = require(\"playwright\");\n\ndescribe(\"Auto-generated tests for https://example.com\", () => {\n  let browser, page;\n\n  beforeAll(async () => {\n    browser = await chromium.launch({ headless: true });\n    const context = await browser.newPage();\n    page = await context.newPage();\n    await page.goto(\"https://example.com\", { waitUntil: \"networkidle\" });\n  });\n\n  afterAll(async () => { await browser.close(); });\n\n  test(\"GET https://api.example.com/users always returns 200\", async () => {\n    // Type: api-status | Confidence: 0.7\n    const response = await page.goto(\"https://api.example.com/users\");\n    expect(response.status()).toBe(200);\n  });\n\n  test(\"https://api.example.com/users returns consistent schema\", async () => {\n    // Type: api-schema | Confidence: 0.6000000000000001\n    const response = await page.goto(\"https://api.example.com/users\");\n    const data = await response.json();\n    expect(typeof data).toBe(\"object\");\n  });\n\n  test(\"GET https://api.example.com/auth always returns 401\", async () => {\n    // Type: api-status | Confidence: 0.6\n    const response = await page.goto(\"https://api.example.com/auth\");\n    expect(response.status()).toBe(401);\n  });\n\n  test(\"Form at /login requires fields: email, pass\", async () => {\n    // Type: form-required | Confidence: 0.85\n    // TODO: Implement test for form-required\n  });\n\n  test(\"Page \\\"Home\\\" has 1 heading(s)\", async () => {\n    // Type: page-structure | Confidence: 0.7\n    await expect(page.locator(\"h1\")).toBeVisible();\n  });\n\n  test(\"POST https://api.example.com/auth returned error status 401\", async () => {\n    // Type: api-error | Confidence: 0.9\n    // TODO: Implement test for api-error\n  });\n\n  test(\"Console error detected: \\\"Uncaught TypeError: Cannot read property of null\\\"\", async () => {\n    // Type: console-error | Confidence: 0.8\n    const errors = [];\n    page.on(\"console\", msg => { if (msg.type() === \"error\") errors.push(msg.text()); });\n    await page.reload();\n    expect(errors.length).toBe(0);\n  });\n\n  test(\"1 image(s) missing alt text on https://example.com\", async () => {\n    // Type: accessibility | Confidence: 0.95\n    const images = await page.$$(\"img:not([alt])\");\n    expect(images.length).toBe(0);\n  });\n\n});",
+  "stats": {
+    "total": 8,
+    "byType": {
+      "api-status": 2,
+      "api-schema": 1,
+      "form-required": 1,
+      "page-structure": 1,
+      "api-error": 1,
+      "console-error": 1,
+      "accessibility": 1
+    },
+    "avgConfidence": 0.7625000000000001
+  }
+}

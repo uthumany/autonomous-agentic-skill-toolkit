@@ -1,14 +1,19 @@
 {
   "name": "autonomous-agentic-skill-toolkit",
-  "version": "0.1.0",
-  "description": "Open-source autonomous testing skill for web apps, mobile apps, desktop apps, CLI tools, and IDE workflows.",
+  "version": "0.2.0",
+  "description": "Open-source autonomous testing skill for web apps, mobile apps, desktop apps, CLI tools, and IDE workflows. Now with flakiness detection, parallel execution, visual regression, AI test oracle, session replay, and environment provisioning.",
   "main": "src/index.js",
   "bin": {
     "aast": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/*.test.js",
+    "test:flakiness": "node src/index.js test:flakiness https://example.com --iterations 3",
+    "test:visual": "node src/index.js test:visual https://example.com --update-baseline",
+    "generate:assertions": "node src/index.js generate:assertions https://example.com",
+    "record:trace": "node src/index.js record:trace https://example.com -d 5",
+    "provision": "node src/index.js provision ./tests"
   },
   "keywords": [
     "agentic",
@@ -19,7 +24,13 @@
     "desktop",
     "cli",
     "ide",
-    "ui/ux"
+    "ui/ux",
+    "flakiness",
+    "parallel",
+    "visual-regression",
+    "session-replay",
+    "provisioning",
+    "test-oracle"
   ],
   "author": "uthuman & co",
   "license": "MIT",
@@ -29,6 +40,11 @@
     "axios": "^1.6.0",
     "axe-core": "^4.9.1",
     "lighthouse": "^11.0.0",
-    "chrome-launcher": "^1.0.0"
+    "chrome-launcher": "^1.0.0",
+    "pngjs": "^7.0.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.0"
   }
 }

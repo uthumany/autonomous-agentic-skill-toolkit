@@ -1,30 +1,39 @@
 # Autonomous Agentic Skill Toolkit
 
-## Overview
+> Open-source autonomous testing toolkit with flakiness detection, parallel execution, visual regression, AI test oracle, session replay, and environment provisioning.
 
-This project aims to create an open-source autonomous testing skill toolkit for web apps, mobile apps, desktop apps, CLI tools, and IDE workflows. It will run checks, capture evidence, and generate fix prompts without manual intervention.
+[![CI](https://github.com/uthumany/autonomous-agentic-skill-toolkit/actions/workflows/node.js.yml/badge.svg)](https://github.com/uthumany/autonomous-agentic-skill-toolkit/actions)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/uthumany/autonomous-agentic-skill-toolkit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Core Features
+## Features
 
-*   **Frontend UI/UX validation**
-*   **Backend/API verification**
-*   **Form filling and auth flow testing**
-*   **Responsive live preview** for mobile, tablet, and desktop
-*   **Screenshot and video evidence capture**
-*   **Accessibility, performance, and SEO audit pass**
-*   **Error analysis and fix-prompt generation**
-*   **Report export** for PRs, issues, and release notes
-*   **Multi-app coverage**: web, mobile, desktop, CLI, and IDE-adjacent flows
+### Core Testing
+- **Multi-Platform Testing**: Web, mobile, desktop, CLI, and IDE testing
+- **Automated UI/UX and Backend Tests**: Comprehensive frontend + backend validation
+- **Form Filling & Auth Flows**: Complex user interaction automation
+- **Rich Evidence Capture**: Screenshots and video recording of test runs
+- **Responsive Design Testing**: Device previews across form factors
+- **Error Detection & Fix Prompts**: AI-assisted developer guidance
+- **Comprehensive Reporting**: JSON and Markdown report generation
 
-## Dependencies & Prerequisites
+### New in v0.2.0
 
-*   **Git**: For cloning the repository.
-*   **Node.js** (LTS version recommended): For running the CLI tool and managing dependencies.
-*   **Python 3**: For potential future API probes, parsing, and report generation scripts.
-*   **Docker**: For portable local runners and reproducible environments (optional, but recommended).
-*   **FFmpeg**: For video capture and media packaging.
-*   **Android platform-tools (adb)**: Required for mobile testing on Android devices.
-*   **Browser Engines**: Chromium/Chrome for Playwright and Lighthouse workflows. These will be installed automatically by Playwright.
+#### Improvements
+
+1. **Smart Test Flakiness Detection & Self-Healing** - Runs tests multiple times, detects non-deterministic behavior, and auto-applies healing strategies (selector swapping, dynamic waits, retry backoff)
+
+2. **Parallel Execution Engine with Resource Pooling** - Central dispatcher with browser/device resource pools, priority queues, worker management, crash recovery, and real-time streaming
+
+3. **Intelligent Visual Regression Testing** - Baseline screenshot library with perceptual diff pipeline (pixel-level + SSIM), categorized into dynamic content, noise, and critical regressions
+
+#### Features
+
+4. **AI-Powered Test Oracle** - Exploratory crawl + heuristic inference engine that auto-generates test assertions from DOM mutations, API schemas, and interaction patterns
+
+5. **Cross-Platform Session Replay** - Full-fidelity trace capture (.aastreplay format) with browser-based viewer: timeline scrubbing, DOM overlays, network inspection, console logs, performance metrics
+
+6. **Dynamic Environment Provisioning** - Infrastructure-as-Test-Code via `environment.yaml` manifests: Docker containers, WireMock/Mountebank stubs, seed scripts, health checks, cascading teardown
 
 ## Installation
 
@@ -33,121 +42,153 @@ This project aims to create an open-source autonomous testing skill toolkit for 
 git clone https://github.com/uthumany/autonomous-agentic-skill-toolkit.git
 cd autonomous-agentic-skill-toolkit
 
-# Install Node.js dependencies
+# Install dependencies
 npm install
 
 # Install Playwright browsers
-npx playwright install --with-deps
-
-# (Optional) Create a global alias for convenience
-echo 'alias aast="$(pwd)/src/index.js"' >> ~/.bashrc # For Bash
-source ~/.bashrc
-# Or for Zsh:
-echo 'alias aast="$(pwd)/src/index.js"' >> ~/.zshrc # For Zsh
-source ~/.zshrc
+npx playwright install chromium
 ```
 
-## Usage
+## Quick Start
 
-### Basic Commands
+```bash
+# Run a web test
+aast test:web https://example.com
 
-*   **Run Web Test**:
-    ```bash
-    aast test:web https://example.com
-    ```
-*   **Run Mobile Test**:
-    ```bash
-    aast test:mobile https://example.com --device "iPhone 11"
-    ```
-*   **Run Desktop Test**:
-    ```bash
-    aast test:desktop "MyDesktopApp"
-    ```
-*   **Run CLI Test**:
-    ```bash
-    aast test:cli "ls -l"
-    ```
-*   **Run API Test**:
-    ```bash
-    aast test:api https://jsonplaceholder.typicode.com/todos/1 -m GET
-    aast test:api https://jsonplaceholder.typicode.com/posts -m POST -d '{"title": "foo", "body": "bar", "userId": 1}'
-    ```
-*   **Run Accessibility Test**:
-    ```bash
-    aast test:accessibility https://example.com
-    ```
-*   **Run Performance Test**:
-    ```bash
-    aast test:performance https://example.com
-    ```
-*   **Capture Screenshot**:
-    ```bash
-    aast capture:screenshot https://example.com -o output.png
-    ```
-*   **Record Video**:
-    ```bash
-    aast record:video https://example.com -o output.webm -d 10
-    ```
-*   **Generate Report**:
-    ```bash
-    aast generate:report ./test-results.json -f json
-    ```
-*   **Generate Fix Prompt**:
-    ```bash
-    aast generate:fix-prompt ./error-details.json
-    ```
+# Check for flaky tests (run 5 times, auto-heal if flaky)
+aast test:flakiness https://example.com --iterations 5 --heal
 
-## Integrations
+# Run tests in parallel
+aast run:parallel ./tests --workers 4 --urls "https://example.com,https://httpbin.org"
 
-This toolkit will leverage the following open-source tools and public APIs:
+# Visual regression test
+aast test:visual https://example.com --update-baseline
+aast test:visual https://example.com  # Compare against baseline
 
-### Open-Source Tools (no authentication required)
+# Auto-generate test assertions
+aast generate:assertions https://example.com --min-confidence 0.5
 
-- **Playwright**: For screenshots, video recording, authentication state reuse, and mobile/tablet/desktop emulation.
-- **Selenium**: For cross-browser automation through WebDriver.
-- **Appium**: For mobile, browser, desktop, and TV automation.
-- **Lighthouse**: For performance, accessibility, PWA, and SEO audits.
-- **axe-core**: For automated accessibility testing in HTML-based UIs.
-- **FFmpeg**: For recording, inspecting, and transcoding media evidence.
-- **Android Debug Bridge (adb)**: For Android install, debug, shell, and device actions.
+# Record and replay a session
+aast record:trace https://example.com -d 10
+aast replay:view ./aast-traces/trace_xxx.aastreplay
 
-### Public API Endpoints (no authentication required)
+# Provision test environment
+aast provision ./test-dir  # Reads environment.yaml
+aast provision --dry-run ./test-dir  # Preview without provisioning
+```
 
-- **Open-Meteo**: Weather forecast data.
-- **Wikimedia Action API**: Public read endpoints for search and parsing.
-- **Open Library Search API**: Book discovery and lookup.
-- **JSONPlaceholder**: Free fake REST data for testing.
-- **REST Countries**: Open-source country data API.
-- **PokéAPI**: Pokémon data.
-- **Dog CEO API**: Public image endpoint.
+## All Commands
 
-## GitHub Setup
+### Testing
+| Command | Description |
+|---------|-------------|
+| `aast test:web <url>` | Run web tests |
+| `aast test:mobile <url> -d "iPhone 11"` | Run mobile tests with device emulation |
+| `aast test:desktop <appName>` | Run desktop application tests |
+| `aast test:cli "<command>"` | Run CLI command tests |
+| `aast test:api <url> -m POST -d '{}'` | Run API tests |
+| `aast test:accessibility <url>` | Run accessibility audits |
+| `aast test:performance <url>` | Run Lighthouse performance tests |
+| `aast test:flakiness <url>` | Flakiness detection across iterations |
+| `aast test:visual <url>` | Visual regression against baselines |
 
-- Public repository name: `autonomous-agentic-skill-toolkit`
-- Core files: `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`
-- Project folders: `src/`, `examples/`, `docs/`, `tests/`, `.github/workflows/`
-- CI: GitHub Actions for lint, unit tests, integration tests, packaging, and release checks.
-- Discoverability: repository topics, concise description, and release tags.
-- Release flow: tag-driven releases with packaged artifacts and notes.
-- Branch safety: protect `main` with required checks and PR review gates.
-- README structure: use headings for automatic table of contents generation.
-- Open-source posture: public repo, contribution guidelines, code of conduct, and security policy.
+### Generation & Recording
+| Command | Description |
+|---------|-------------|
+| `aast generate:assertions <url>` | Auto-generate test assertions |
+| `aast generate:report <file> -f json` | Generate test reports |
+| `aast generate:fix-prompt <file>` | Generate fix prompts from errors |
+| `aast record:trace <url>` | Record session trace |
+| `aast record:video <url>` | Record video |
+| `aast capture:screenshot <url>` | Capture screenshot |
 
-## MVP Terms
+### Execution & Provisioning
+| Command | Description |
+|---------|-------------|
+| `aast run:parallel <dir>` | Run test suite in parallel |
+| `aast provision <dir>` | Provision test environment |
+| `aast provision --dry-run <dir>` | Preview provisioning |
+| `aast provision:teardown` | Tear down environments |
+| `aast replay:view <file>` | View session replay |
 
-- **v0.1**: Web-first automation, login/forms, screenshots, video, accessibility scan, fix-prompt report.
-- **v0.2**: Mobile emulation, real-device Android bridge, device presets.
-- **v0.3**: Desktop app hooks, CLI adapters, richer report bundles.
-- **v1.0**: Plugin system, CI automation, release packaging, evidence archive, prompt templates.
+## Environment Manifest
 
-## Terminal ASCII Art Design Principles
+Create an `environment.yaml` in your test directory:
 
-- Monospace only
-- 80-column safe
-- Boxed sections and clear hierarchy
-- Copy-safe output with no hidden formatting dependency
-- Optional ANSI color, never required
-- Status-first labels: PASS, FAIL, WARN, INFO
-- Compact summaries before deep logs
-- Machine-readable fallback in JSON and Markdown
-- Works cleanly in Bash, Zsh, Fish, PowerShell, Command Prompt, Tmux, Screen, and terminal IDE panels
+```yaml
+version: "1.0"
+network: "aast-test-net"
+
+services:
+  - name: postgres
+    image: postgres:15
+    ports: ["5432:5432"]
+    env:
+      POSTGRES_DB: testdb
+      POSTGRES_PASSWORD: secret
+    healthcheck: "http://localhost:5432/health"
+
+  - name: redis
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+stubs:
+  - name: weather-api
+    type: wiremock
+    mappings: ./stubs/weather
+
+seed:
+  - name: init-db
+    type: sql
+    file: ./seeds/init.sql
+    target: postgres
+```
+
+## Project Structure
+
+```
+autonomous-agentic-skill-toolkit/
+├── src/
+│   ├── index.js                  # CLI entry point (25+ commands)
+│   └── modules/
+│       ├── flakiness.js          # Flakiness detection & self-healing
+│       ├── parallel.js           # Parallel execution engine
+│       ├── visual_regression.js  # Visual regression testing
+│       ├── oracle.js             # AI test oracle & assertion generator
+│       ├── session_replay.js     # Session replay & .aastreplay format
+│       ├── provisioner.js        # Environment provisioning
+│       ├── web.js                # Web testing
+│       ├── mobile.js             # Mobile testing
+│       ├── desktop.js            # Desktop testing
+│       ├── cli.js                # CLI testing
+│       ├── api.js                # API testing
+│       ├── accessibility.js      # Accessibility testing
+│       ├── performance.js        # Performance testing
+│       ├── evidence.js           # Screenshot & video capture
+│       ├── report.js             # Report generation
+│       └── fix_prompt.js         # Fix prompt generation
+├── tests/                        # 64 unit tests
+│   ├── flakiness.test.js
+│   ├── parallel.test.js
+│   ├── visual_regression.test.js
+│   ├── oracle.test.js
+│   ├── session_replay.test.js
+│   └── provisioner.test.js
+├── examples/                     # Example test scripts
+├── docs/                         # Documentation
+└── package.json
+```
+
+## Running Tests
+
+```bash
+# Run all tests (64 tests, ~4 seconds)
+node --test tests/*.test.js
+
+# Run a specific module's tests
+node --test tests/parallel.test.js
+```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
