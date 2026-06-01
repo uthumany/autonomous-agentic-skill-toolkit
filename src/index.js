@@ -21,6 +21,7 @@ const os = require('os');
 const {
   THEMES, renderBanner, renderBox, renderMenu,
   colorize, progressBar, spinner, divider,
+  startFooterRefresh, renderFooterCard, stripAnsi,
 } = require('./ui');
 
 // ── Core Modules ────────────────────────────────────────────
@@ -88,6 +89,9 @@ function startRepl() {
   console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
   console.log('');
 
+  // Start the real-time footer card (bottom-right, clock ticks every second)
+  const stopFooter = startFooterRefresh(theme, 1000);
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -101,7 +105,7 @@ function startRepl() {
         'run:parallel', 'generate:assertions', 'generate:report', 'generate:fix-prompt',
         'record:trace', 'record:video', 'capture:screenshot',
         'replay:view', 'provision', 'provision:teardown', 'visual:update-baseline',
-        'about', 'modules', 'status',
+        'about', 'modules', 'status', 'social', 'footer',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
       return [hits.length ? hits : cmds, line];
@@ -132,6 +136,7 @@ function startRepl() {
 
         case 'quit':
         case 'exit':
+          if (stopFooter) stopFooter();
           console.log(colorize('\n  Goodbye! Happy testing! 👋\n', 'info', theme));
           saveHistory(rl);
           process.exit(0);
@@ -171,6 +176,18 @@ function startRepl() {
 
         case 'status':
           showStatus(theme);
+          break;
+
+        case 'social':
+          showSocialLinks(theme);
+          break;
+
+        case 'footer':
+          // Redraw footer immediately
+          process.stdout.write('\x1b[2J\x1b[H');
+          console.log(renderBanner(theme, true));
+          console.log('');
+          console.log(colorize('  Footer refreshed. Clock is ticking...', 'success', theme));
           break;
 
         case 'test:web':
@@ -250,6 +267,7 @@ function startRepl() {
   });
 
   rl.on('close', () => {
+    if (stopFooter) stopFooter();
     console.log(colorize('\n  Goodbye! 👋\n', 'info', theme));
     saveHistory(rl);
     process.exit(0);
@@ -306,6 +324,8 @@ function showHelp(theme) {
         { cmd: 'theme <name>', desc: 'Switch theme' },
         { cmd: 'modules', desc: 'Show loaded modules' },
         { cmd: 'status', desc: 'System status' },
+        { cmd: 'social', desc: 'Show social media links' },
+        { cmd: 'footer', desc: 'Refresh the live footer card' },
         { cmd: 'about', desc: 'About AAST' },
         { cmd: 'clear', desc: 'Clear screen' },
         { cmd: 'quit / exit', desc: 'Exit AAST' },
@@ -393,7 +413,29 @@ function showStatus(theme) {
   console.log('');
 }
 
-// ── Test command wrappers ──────────────────────────────────
+function showSocialLinks(theme) {
+  const t = theme || THEMES.cyber;
+  const links = [
+    { icon: '\x1b[38;5;27mⓕ\x1b[0m', label: 'Facebook',  url: 'https://www.facebook.com/moody.uthuman' },
+    { icon: '\x1b[38;5;201mⓘ\x1b[0m', label: 'Instagram', url: 'https://www.instagram.com/uthuman.co' },
+    { icon: '\x1b[38;5;39mⓣ\x1b[0m', label: 'Telegram',  url: 'https://t.me/uthuman' },
+    { icon: '\x1b[1;37mⓧ\x1b[0m',    label: 'X/Twitter', url: 'https://x.com/uthumanco' },
+    { icon: '\x1b[38;5;46mⓦ\x1b[0m', label: 'WhatsApp',  url: 'https://wa.me/256705126287' },
+    { icon: '\x1b[38;5;226mⓔ\x1b[0m', label: 'Email',     url: 'mailto:dev@uthuman.com' },
+    { icon: '\x1b[1;37mⓚ\x1b[0m',    label: 'TikTok',    url: 'https://www.tiktok.com/@uthuman.co' },
+    { icon: '\x1b[1;37mⓖ\x1b[0m',    label: 'GitHub',    url: 'https://github.com/uthumany' },
+  ];
+  console.log('');
+  console.log(colorize('  ── CONNECT WITH UTHUMAN & CO ────────────────────────', 'muted', theme));
+  for (const l of links) {
+    const label = colorize(l.label.padEnd(12), 'primary', theme);
+    const url = colorize(l.url, 'info', theme);
+    console.log(`    ${l.icon} ${label} ${url}`);
+  }
+  console.log('');
+  console.log(colorize('  © 2026 uthuman & co. Free & Open Source.', 'muted', theme));
+  console.log('');
+}
 
 async function cmdWebTest(url, theme) {
   console.log(colorize(`\n  ▶ Running web test: ${url}`, 'info', theme));
