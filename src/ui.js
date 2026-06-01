@@ -267,7 +267,7 @@ function renderFooterCard(theme) {
   });
   const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
 
-  const W = 50; // card inner width
+  const W = 95; // card inner width — wide enough for all URLs
   const pad = (s, w) => {
     const len = stripAnsi(s).length;
     return s + ' '.repeat(Math.max(0, w - len));
@@ -342,9 +342,9 @@ function renderFooterAtBottom(theme) {
   const cardHeight = cardLines.length;
   const cardWidth = stripAnsi(cardLines[0]).length;
 
-  // Position card at bottom-right
+  // Position card at bottom-left with small margin
   const startRow = rows - cardHeight - 1;
-  const startCol = Math.max(1, cols - cardWidth - 2);
+  const startCol = 2;
 
   let output = saveCursor();
 
