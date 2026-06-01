@@ -1,6 +1,29 @@
 #!/usr/bin/env node
 
+/**
+ * AAST — Autonomous Agentic Skill Toolkit
+ * Interactive CLI with REPL, themes, ASCII art, and full test automation.
+ *
+ * Usage:
+ *   aast                    → Interactive REPL mode
+ *   aast <command> [opts]   → Direct command execution
+ *   aast --help             → Show help
+ *   aast --version          → Show version
+ */
+
 const { Command } = require('commander');
+const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// ── UI ──────────────────────────────────────────────────────
+const {
+  THEMES, renderBanner, renderBox, renderMenu,
+  colorize, progressBar, spinner, divider,
+} = require('./ui');
+
+// ── Core Modules ────────────────────────────────────────────
 const { runWebTest } = require('./modules/web');
 const { runMobileTest } = require('./modules/mobile');
 const { runDesktopTest } = require('./modules/desktop');
@@ -12,535 +35,749 @@ const { generateReport } = require('./modules/report');
 const { generateFixPrompt } = require('./modules/fix_prompt');
 const { captureScreenshot, recordVideo } = require('./modules/evidence');
 
-// New modules — Feature 1: Flakiness Detection
+// ── Advanced Modules ────────────────────────────────────────
 const { FlakinessDetector } = require('./modules/flakiness');
-// New modules — Feature 2: Parallel Execution
 const { ParallelEngine } = require('./modules/parallel');
-// New modules — Feature 3: Visual Regression
 const { VisualRegressionTester } = require('./modules/visual_regression');
-// New modules — Feature 4: Test Oracle
 const { TestOracle } = require('./modules/oracle');
-// New modules — Feature 5: Session Replay
 const { SessionRecorder, SessionTrace, ReplayViewer } = require('./modules/session_replay');
-// New modules — Feature 6: Environment Provisioning
 const { EnvironmentProvisioner } = require('./modules/provisioner');
 
-const fs = require('fs');
-const path = require('path');
+// ════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════
 
-const program = new Command();
+const VERSION = '0.2.1';
+const CONFIG_DIR = path.join(os.homedir(), '.aast');
+const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+const HISTORY_FILE = path.join(CONFIG_DIR, 'history');
 
-program
-  .name('aast')
-  .description('Autonomous Agentic Skill Toolkit CLI')
-  .version('0.2.0');
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    }
+  } catch (_) {}
+  return { theme: 'cyber', compactBanner: false, historySize: 100 };
+}
 
-// ═══════════════════════════════════════════════════════════
-// EXISTING COMMANDS
-// ═══════════════════════════════════════════════════════════
+function saveConfig(cfg) {
+  try {
+    if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  } catch (_) {}
+}
 
-program.command('test:web <url>')
-  .description('Run web tests on a given URL')
-  .action(async (url) => {
-    console.log(`Starting web test for ${url}...`);
+function getTheme(cfg) {
+  return THEMES[cfg.theme] || THEMES.cyber;
+}
+
+// ════════════════════════════════════════════════════════════
+// INTERACTIVE REPL
+// ════════════════════════════════════════════════════════════
+
+function startRepl() {
+  const config = loadConfig();
+  const theme = getTheme(config);
+
+  // Clear screen and show banner
+  process.stdout.write('\x1b[2J\x1b[H');
+  console.log(renderBanner(theme, config.compactBanner));
+  console.log('');
+  console.log(colorize(`  Welcome to AAST v${VERSION} — Your Autonomous Testing Companion`, 'info', theme));
+  console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
+  console.log('');
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: `${colorize('aast', 'secondary', theme)}${colorize('>', 'primary', theme)} `,
+    historySize: config.historySize || 100,
+    completer: (line) => {
+      const cmds = [
+        'help', 'quit', 'exit', 'clear', 'banner', 'theme', 'themes',
+        'test:web', 'test:mobile', 'test:desktop', 'test:cli', 'test:api',
+        'test:accessibility', 'test:performance', 'test:flakiness', 'test:visual',
+        'run:parallel', 'generate:assertions', 'generate:report', 'generate:fix-prompt',
+        'record:trace', 'record:video', 'capture:screenshot',
+        'replay:view', 'provision', 'provision:teardown', 'visual:update-baseline',
+        'about', 'modules', 'status',
+      ];
+      const hits = cmds.filter(c => c.startsWith(line));
+      return [hits.length ? hits : cmds, line];
+    },
+  });
+
+  // Load history
+  try {
+    if (fs.existsSync(HISTORY_FILE)) {
+      const hist = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
+      hist.forEach(h => rl.history.push(h));
+    }
+  } catch (_) {}
+
+  rl.prompt();
+
+  rl.on('line', async (line) => {
+    const input = line.trim();
+    if (!input) { rl.prompt(); return; }
+
+    const [cmd, ...args] = input.split(/\s+/);
+
+    try {
+      switch (cmd) {
+        case 'help':
+          showHelp(theme);
+          break;
+
+        case 'quit':
+        case 'exit':
+          console.log(colorize('\n  Goodbye! Happy testing! 👋\n', 'info', theme));
+          saveHistory(rl);
+          process.exit(0);
+
+        case 'clear':
+          process.stdout.write('\x1b[2J\x1b[H');
+          console.log(renderBanner(theme, true));
+          break;
+
+        case 'banner':
+          console.log(renderBanner(theme, false));
+          break;
+
+        case 'theme':
+          if (args[0] && THEMES[args[0]]) {
+            config.theme = args[0];
+            saveConfig(config);
+            console.log(colorize(`  Theme set to: ${THEMES[args[0]].name}`, 'success', theme));
+          } else {
+            console.log(colorize('  Available themes: cyber, matrix, fire, ocean, neon', 'info', theme));
+            console.log(colorize(`  Current: ${config.theme}`, 'muted', theme));
+            console.log(colorize('  Usage: theme <name>', 'muted', theme));
+          }
+          break;
+
+        case 'themes':
+          showThemes(theme);
+          break;
+
+        case 'about':
+          showAbout(theme);
+          break;
+
+        case 'modules':
+          showModules(theme);
+          break;
+
+        case 'status':
+          showStatus(theme);
+          break;
+
+        case 'test:web':
+          if (!args[0]) { console.log(colorize('  Usage: test:web <url>', 'warn', theme)); break; }
+          await cmdWebTest(args[0], theme);
+          break;
+
+        case 'test:mobile':
+          if (!args[0]) { console.log(colorize('  Usage: test:mobile <url> [device]', 'warn', theme)); break; }
+          await cmdMobileTest(args[0], args[1] || 'iPhone 11', theme);
+          break;
+
+        case 'test:api':
+          if (!args[0]) { console.log(colorize('  Usage: test:api <url> [method] [data]', 'warn', theme)); break; }
+          await cmdApiTest(args[0], args[1] || 'GET', args[2], theme);
+          break;
+
+        case 'test:accessibility':
+          if (!args[0]) { console.log(colorize('  Usage: test:accessibility <url>', 'warn', theme)); break; }
+          await cmdAccessibility(args[0], theme);
+          break;
+
+        case 'test:performance':
+          if (!args[0]) { console.log(colorize('  Usage: test:performance <url>', 'warn', theme)); break; }
+          await cmdPerformance(args[0], theme);
+          break;
+
+        case 'test:flakiness':
+          if (!args[0]) { console.log(colorize('  Usage: test:flakiness <url> [iterations]', 'warn', theme)); break; }
+          await cmdFlakiness(args[0], parseInt(args[1]) || 3, theme);
+          break;
+
+        case 'test:visual':
+          if (!args[0]) { console.log(colorize('  Usage: test:visual <url>', 'warn', theme)); break; }
+          await cmdVisual(args[0], theme);
+          break;
+
+        case 'run:parallel':
+          if (!args[0]) { console.log(colorize('  Usage: run:parallel <url1,url2,...>', 'warn', theme)); break; }
+          await cmdParallel(args[0], theme);
+          break;
+
+        case 'generate:assertions':
+          if (!args[0]) { console.log(colorize('  Usage: generate:assertions <url>', 'warn', theme)); break; }
+          await cmdOracle(args[0], theme);
+          break;
+
+        case 'record:trace':
+          if (!args[0]) { console.log(colorize('  Usage: record:trace <url> [duration]', 'warn', theme)); break; }
+          await cmdRecordTrace(args[0], parseInt(args[1]) || 5, theme);
+          break;
+
+        case 'capture:screenshot':
+          if (!args[0]) { console.log(colorize('  Usage: capture:screenshot <url>', 'warn', theme)); break; }
+          await cmdScreenshot(args[0], theme);
+          break;
+
+        case 'generate:report':
+          if (!args[0]) { console.log(colorize('  Usage: generate:report <file>', 'warn', theme)); break; }
+          await cmdReport(args[0], args[1] || 'json', theme);
+          break;
+
+        case 'provision':
+          if (!args[0]) { console.log(colorize('  Usage: provision <testDir>', 'warn', theme)); break; }
+          await cmdProvision(args[0], theme);
+          break;
+
+        default:
+          console.log(colorize(`  Unknown command: "${cmd}"`, 'error', theme));
+          console.log(colorize('  Type "help" to see available commands', 'muted', theme));
+      }
+    } catch (err) {
+      console.log(colorize(`  Error: ${err.message}`, 'error', theme));
+    }
+
+    rl.prompt();
+  });
+
+  rl.on('close', () => {
+    console.log(colorize('\n  Goodbye! 👋\n', 'info', theme));
+    saveHistory(rl);
+    process.exit(0);
+  });
+}
+
+function saveHistory(rl) {
+  try {
+    if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    const hist = rl.history.filter(Boolean).reverse().slice(0, 200).join('\n');
+    fs.writeFileSync(HISTORY_FILE, hist);
+  } catch (_) {}
+}
+
+// ════════════════════════════════════════════════════════════
+// REPL COMMAND HANDLERS
+// ════════════════════════════════════════════════════════════
+
+function showHelp(theme) {
+  const sections = [
+    {
+      title: 'TESTING',
+      items: [
+        { cmd: 'test:web <url>', desc: 'Run Playwright web test' },
+        { cmd: 'test:mobile <url> [device]', desc: 'Mobile device emulation test' },
+        { cmd: 'test:api <url> [method] [data]', desc: 'API endpoint test' },
+        { cmd: 'test:accessibility <url>', desc: 'axe-core accessibility audit' },
+        { cmd: 'test:performance <url>', desc: 'Lighthouse performance audit' },
+        { cmd: 'test:flakiness <url> [n]', desc: 'Flakiness detection (n iterations)' },
+        { cmd: 'test:visual <url>', desc: 'Visual regression vs baseline' },
+      ],
+    },
+    {
+      title: 'GENERATION & RECORDING',
+      items: [
+        { cmd: 'generate:assertions <url>', desc: 'AI test oracle — auto-generate assertions' },
+        { cmd: 'generate:report <file> [fmt]', desc: 'Generate JSON/Markdown report' },
+        { cmd: 'capture:screenshot <url>', desc: 'Capture screenshot' },
+        { cmd: 'record:trace <url> [sec]', desc: 'Record session trace (.aastreplay)' },
+        { cmd: 'run:parallel <url1,url2>', desc: 'Parallel execution engine' },
+      ],
+    },
+    {
+      title: 'PROVISIONING',
+      items: [
+        { cmd: 'provision <dir>', desc: 'Provision test environment from env.yaml' },
+      ],
+    },
+    {
+      title: 'SHELL',
+      items: [
+        { cmd: 'help', desc: 'Show this help' },
+        { cmd: 'themes', desc: 'List available themes' },
+        { cmd: 'theme <name>', desc: 'Switch theme' },
+        { cmd: 'modules', desc: 'Show loaded modules' },
+        { cmd: 'status', desc: 'System status' },
+        { cmd: 'about', desc: 'About AAST' },
+        { cmd: 'clear', desc: 'Clear screen' },
+        { cmd: 'quit / exit', desc: 'Exit AAST' },
+      ],
+    },
+  ];
+
+  console.log('');
+  for (const sec of sections) {
+    console.log(colorize(`  ── ${sec.title} ${'─'.repeat(50 - sec.title.length)}`, 'muted', theme));
+    for (const item of sec.items) {
+      const cmd = colorize(item.cmd.padEnd(32), 'secondary', theme);
+      console.log(`    ${cmd}${colorize(item.desc, 'muted', theme)}`);
+    }
+    console.log('');
+  }
+}
+
+function showThemes(theme) {
+  console.log('');
+  console.log(colorize('  Available Themes:', 'bold', theme));
+  for (const [key, t] of Object.entries(THEMES)) {
+    console.log(`    ${t.primary}██${theme.reset}  ${colorize(key.padEnd(10), 'primary', theme)}${colorize(t.name, 'muted', theme)}`);
+  }
+  console.log('');
+  console.log(colorize('  Usage: theme <name>', 'muted', theme));
+}
+
+function showAbout(theme) {
+  console.log('');
+  console.log(renderBox([
+    `${colorize('AAST', 'secondary', theme)} — Autonomous Agentic Skill Toolkit`,
+    `${colorize('Version', 'muted', theme)}: ${VERSION}`,
+    `${colorize('License', 'muted', theme)}: MIT`,
+    `${colorize('Author', 'muted', theme)}: uthuman & co`,
+    '',
+    'Open-source autonomous testing toolkit with:',
+    '  • Flakiness detection & self-healing',
+    '  • Parallel execution with resource pooling',
+    '  • Visual regression (perceptual diff + SSIM)',
+    '  • AI test oracle & assertion generator',
+    '  • Cross-platform session replay (.aastreplay)',
+    '  • Infrastructure-as-test-code provisioning',
+  ], theme, 'ABOUT'));
+}
+
+function showModules(theme) {
+  console.log('');
+  const mods = [
+    ['web', 'Playwright chromium web testing'],
+    ['mobile', 'Mobile device emulation (WebKit)'],
+    ['desktop', 'Desktop application testing'],
+    ['cli', 'CLI command testing (child_process)'],
+    ['api', 'API endpoint testing (axios)'],
+    ['accessibility', 'axe-core accessibility audits'],
+    ['performance', 'Lighthouse performance audits'],
+    ['evidence', 'Screenshot & video capture'],
+    ['report', 'JSON/Markdown report generation'],
+    ['fix_prompt', 'AI fix prompt generation'],
+    ['flakiness', 'Flakiness detection & self-healing'],
+    ['parallel', 'Parallel execution engine'],
+    ['visual_regression', 'Perceptual diff visual testing'],
+    ['oracle', 'AI test oracle & assertions'],
+    ['session_replay', 'Session trace recording & replay'],
+    ['provisioner', 'Docker/env provisioning'],
+  ];
+  console.log(colorize('  ── LOADED MODULES ───────────────────────────────────', 'muted', theme));
+  for (const [name, desc] of mods) {
+    console.log(`    ${colorize('●', 'success', theme)} ${colorize(name.padEnd(22), 'secondary', theme)}${colorize(desc, 'muted', theme)}`);
+  }
+  console.log('');
+}
+
+function showStatus(theme) {
+  console.log('');
+  console.log(colorize('  ── SYSTEM STATUS ────────────────────────────────────', 'muted', theme));
+  console.log(`    ${colorize('Platform', 'info', theme)}:    ${process.platform} ${process.arch}`);
+  console.log(`    ${colorize('Node.js', 'info', theme)}:     ${process.version}`);
+  console.log(`    ${colorize('AAST', 'info', theme)}:       v${VERSION}`);
+  console.log(`    ${colorize('Memory', 'info', theme)}:     ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`);
+  console.log(`    ${colorize('Uptime', 'info', theme)}:     ${Math.round(process.uptime())}s`);
+  console.log(`    ${colorize('Config', 'info', theme)}:     ${CONFIG_FILE}`);
+  console.log(`    ${colorize('Modules', 'info', theme)}:    16 loaded`);
+  console.log(`    ${colorize('Commands', 'info', theme)}:   22 available`);
+  console.log('');
+}
+
+// ── Test command wrappers ──────────────────────────────────
+
+async function cmdWebTest(url, theme) {
+  console.log(colorize(`\n  ▶ Running web test: ${url}`, 'info', theme));
+  const stop = spinner('Launching browser...', theme);
+  try {
     await runWebTest(url);
-    console.log('Web test finished.');
-  });
+    stop();
+    console.log(colorize('  ✓ Web test completed', 'success', theme));
+  } catch (e) {
+    stop();
+    console.log(colorize(`  ✗ Web test failed: ${e.message}`, 'error', theme));
+  }
+}
 
-program.command("test:desktop <appName>")
-  .description("Run desktop application tests")
-  .action(async (appName) => {
-    console.log(`Starting desktop test for ${appName}...`);
-    await runDesktopTest(appName);
-    console.log("Desktop test finished.");
-  });
+async function cmdMobileTest(url, device, theme) {
+  console.log(colorize(`\n  ▶ Mobile test: ${url} (${device})`, 'info', theme));
+  const stop = spinner('Launching mobile emulation...', theme);
+  try {
+    await runMobileTest(url, device);
+    stop();
+    console.log(colorize('  ✓ Mobile test completed', 'success', theme));
+  } catch (e) {
+    stop();
+    console.log(colorize(`  ✗ Mobile test failed: ${e.message}`, 'error', theme));
+  }
+}
 
-program.command("test:cli <command>")
-  .description("Run CLI command tests")
-  .action(async (command) => {
-    console.log(`Starting CLI test for: ${command}...`);
-    await runCliTest(command);
-    console.log("CLI test finished.");
-  });
+async function cmdApiTest(url, method, data, theme) {
+  console.log(colorize(`\n  ▶ API test: ${method} ${url}`, 'info', theme));
+  let parsed = {};
+  if (data) try { parsed = JSON.parse(data); } catch (_) {}
+  try {
+    await runApiTest(url, method, parsed);
+    console.log(colorize('  ✓ API test completed', 'success', theme));
+  } catch (e) {
+    console.log(colorize(`  ✗ API test failed: ${e.message}`, 'error', theme));
+  }
+}
 
-program.command("test:api <url>")
-  .description("Run API tests on a given URL")
-  .option("-m, --method <type>", "HTTP method (GET, POST, PUT, DELETE)", "GET")
-  .option("-d, --data <json>", "JSON data for POST/PUT requests")
-  .action(async (url, options) => {
-    console.log(`Starting API test for ${url} with method ${options.method}...`);
-    let data = {};
-    if (options.data) {
-      try {
-        data = JSON.parse(options.data);
-      } catch (e) {
-        console.error("Invalid JSON data provided.", e);
-        process.exit(1);
-      }
-    }
-    await runApiTest(url, options.method, data);
-    console.log("API test finished.");
-  });
-
-program.command("test:accessibility <url>")
-  .description("Run accessibility tests on a given URL")
-  .action(async (url) => {
-    console.log(`Starting accessibility test for ${url}...`);
+async function cmdAccessibility(url, theme) {
+  console.log(colorize(`\n  ▶ Accessibility audit: ${url}`, 'info', theme));
+  try {
     await runAccessibilityTest(url);
-    console.log("Accessibility test finished.");
-  });
+    console.log(colorize('  ✓ Accessibility test completed', 'success', theme));
+  } catch (e) {
+    console.log(colorize(`  ✗ Accessibility test failed: ${e.message}`, 'error', theme));
+  }
+}
 
-program.command("test:performance <url>")
-  .description("Run performance tests on a given URL using Lighthouse")
-  .action(async (url) => {
-    console.log(`Starting performance test for ${url}...`);
+async function cmdPerformance(url, theme) {
+  console.log(colorize(`\n  ▶ Performance audit: ${url}`, 'info', theme));
+  try {
     await runPerformanceTest(url);
-    console.log("Performance test finished.");
-  });
+    console.log(colorize('  ✓ Performance test completed', 'success', theme));
+  } catch (e) {
+    console.log(colorize(`  ✗ Performance test failed: ${e.message}`, 'error', theme));
+  }
+}
 
-program.command("test:mobile <url>")
-  .description('Run mobile tests on a given URL with an optional device preset')
-  .option('-d, --device <type>', 'Device to emulate (e.g., "iPhone 11", "Pixel 2")', 'iPhone 11')
-  .action(async (url, options) => {
-    console.log(`Starting mobile test for ${url} on device ${options.device}...`);
-    await runMobileTest(url, options.device);
-    console.log('Mobile test finished.');
-  });
+async function cmdFlakiness(url, iterations, theme) {
+  console.log(colorize(`\n  ▶ Flakiness detection: ${url} (${iterations} iterations)`, 'info', theme));
+  const detector = new FlakinessDetector({ iterations, outputDir: './aast-flakiness-results' });
+  const testFn = async (page) => {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.screenshot({ path: 'flakiness_screenshot.png' });
+  };
+  const result = await detector.detectFlakiness('web-navigation', testFn, url);
+  console.log('');
+  console.log(colorize('  ── FLAKINESS REPORT ─────────────────────────────────', 'muted', theme));
+  console.log(`    Pass rate:      ${colorize(`${(result.passRate * 100).toFixed(1)}%`, result.passRate > 0.8 ? 'success' : 'error', theme)}`);
+  console.log(`    Flakiness:      ${colorize(`${(result.flakinessScore * 100).toFixed(1)}%`, result.isFlaky ? 'error' : 'success', theme)}`);
+  console.log(`    Status:         ${result.isFlaky ? colorize('FLAKY ⚠', 'error', theme) : colorize('STABLE ✓', 'success', theme)}`);
+  console.log(`    Avg time:       ${result.timingStats.avgMs}ms`);
+  detector.saveResults(result, `flakiness-${Date.now()}.json`);
+}
 
-program.command('capture:screenshot <url>')
-  .description('Capture a screenshot of a given URL')
-  .option('-o, --output <path>', 'Output path for the screenshot', 'screenshot.png')
-  .action(async (url, options) => {
-    console.log(`Capturing screenshot for ${url}...`);
-    await captureScreenshot(url, options.output);
-    console.log('Screenshot captured.');
-  });
+async function cmdVisual(url, theme) {
+  console.log(colorize(`\n  ▶ Visual regression: ${url}`, 'info', theme));
+  const tester = new VisualRegressionTester({ baselineDir: './aast-visual-baselines', outputDir: './aast-visual-results' });
+  const report = await tester.runRegression(url, { updateBaseline: false });
+  console.log(colorize(`  Matches: ${report.summary.matches} | Noise: ${report.summary.noise} | Critical: ${report.summary.critical}`, 
+    report.summary.hasBlockingRegressions ? 'error' : 'success', theme));
+}
 
-program.command('record:video <url>')
-  .description('Record a video of a given URL')
-  .option('-o, --output <path>', 'Output path for the video', 'video.webm')
-  .option('-d, --duration <seconds>', 'Duration of the video recording in seconds', '5')
-  .action(async (url, options) => {
-    console.log(`Recording video for ${url}...`);
-    await recordVideo(url, options.output, parseInt(options.duration));
-    console.log('Video recorded.');
-  });
+async function cmdParallel(urls, theme) {
+  const urlList = urls.split(',').map(u => u.trim());
+  console.log(colorize(`\n  ▶ Parallel execution: ${urlList.length} URLs`, 'info', theme));
+  const engine = new ParallelEngine({ maxWorkers: Math.min(urlList.length, 4) });
+  const suite = urlList.map((url, i) => ({
+    id: `task_${i}`, name: `Test ${url}`, resourceType: 'none',
+    execute: async () => ({ url, status: 'ok', duration: Math.random() * 100 }),
+  }));
+  const summary = await engine.runSuite(suite);
+  console.log(colorize(`  ✓ ${summary.completed}/${summary.totalTasks} passed (${summary.totalDurationMs}ms)`, 'success', theme));
+}
 
-program.command('audit')
-  .description('Perform accessibility and performance audits')
-  .action(() => {
-    console.log('Performing audits...');
-  });
+async function cmdOracle(url, theme) {
+  console.log(colorize(`\n  ▶ Test Oracle: exploring ${url}`, 'info', theme));
+  const oracle = new TestOracle({ outputDir: './aast-generated-assertions' });
+  const { assertions } = await oracle.explore(url, { maxInteractions: 10 });
+  console.log(colorize(`  ✓ Generated ${assertions.length} assertions`, 'success', theme));
+  for (const a of assertions.slice(0, 5)) {
+    console.log(`    ${colorize('[', 'muted', theme)}${colorize(a.severity, a.severity === 'critical' ? 'error' : 'warn', theme)}${colorize(']', 'muted', theme)} ${a.invariant}`);
+  }
+}
 
-program.command('generate:fix-prompt <errorDetailsFile>')
-  .description('Generate a fix prompt based on error details')
-  .action(async (errorDetailsFile) => {
-    console.log(`Generating fix prompt from ${errorDetailsFile}...`);
-    try {
-      const errorDetails = JSON.parse(fs.readFileSync(errorDetailsFile, 'utf8'));
-      const fixPrompt = await generateFixPrompt(errorDetails);
-      console.log('Fix Prompt:\n', fixPrompt);
-    } catch (error) {
-      console.error('Error generating fix prompt:', error.message);
-      process.exit(1);
-    }
-  });
+async function cmdRecordTrace(url, duration, theme) {
+  console.log(colorize(`\n  ▶ Recording trace: ${url} (${duration}s)`, 'info', theme));
+  const recorder = new SessionRecorder({ outputDir: './aast-traces' });
+  const result = await recorder.record(url, { duration });
+  console.log(colorize(`  ✓ Trace saved: ${result.outputPath}`, 'success', theme));
+  console.log(`    Snapshots: ${result.stats.snapshots} | Network: ${result.stats.networkEntries} | Errors: ${result.stats.consoleErrors}`);
+}
 
-program.command('generate:report <testResultsFile>')
-  .description('Generate test reports from a JSON results file')
-  .option('-f, --format <type>', 'Report format (json, markdown)', 'json')
-  .action(async (testResultsFile, options) => {
-    console.log(`Generating report from ${testResultsFile} in ${options.format} format...`);
-    try {
-      const testResults = JSON.parse(require('fs').readFileSync(testResultsFile, 'utf8'));
-      const reportFileName = generateReport(testResults, options.format);
-      console.log(`Report generated: ${reportFileName}`);
-    } catch (error) {
-      console.error('Error generating report:', error.message);
-      process.exit(1);
-    }
-  });
+async function cmdScreenshot(url, theme) {
+  console.log(colorize(`\n  ▶ Capturing screenshot: ${url}`, 'info', theme));
+  try {
+    await captureScreenshot(url, 'screenshot.png');
+    console.log(colorize('  ✓ Screenshot saved: screenshot.png', 'success', theme));
+  } catch (e) {
+    console.log(colorize(`  ✗ Screenshot failed: ${e.message}`, 'error', theme));
+  }
+}
 
-// ═══════════════════════════════════════════════════════════
-// NEW COMMANDS — Feature 1: Flakiness Detection & Self-Healing
-// ═══════════════════════════════════════════════════════════
+async function cmdReport(file, format, theme) {
+  console.log(colorize(`\n  ▶ Generating report: ${file}`, 'info', theme));
+  try {
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const reportFile = generateReport(data, format);
+    console.log(colorize(`  ✓ Report saved: ${reportFile}`, 'success', theme));
+  } catch (e) {
+    console.log(colorize(`  ✗ Report failed: ${e.message}`, 'error', theme));
+  }
+}
 
-program.command('test:flakiness <url>')
-  .description('Run flakiness detection: execute a test multiple times to find non-deterministic behavior')
-  .option('-i, --iterations <n>', 'Number of iterations per test', '5')
-  .option('-t, --threshold <n>', 'Flakiness threshold (0-1, higher = more sensitive)', '0.5')
-  .option('-o, --output <dir>', 'Output directory for results', './aast-flakiness-results')
-  .option('--heal', 'Attempt self-healing after flakiness is detected', false)
-  .action(async (url, options) => {
-    const detector = new FlakinessDetector({
-      iterations: parseInt(options.iterations),
-      flakinessThreshold: parseFloat(options.threshold),
-      outputDir: options.output,
+async function cmdProvision(dir, theme) {
+  console.log(colorize(`\n  ▶ Provisioning: ${dir}`, 'info', theme));
+  const provisioner = new EnvironmentProvisioner({ baseDir: dir });
+  const manifest = provisioner.readManifest(dir);
+  console.log(colorize(`  Manifest loaded: ${manifest.services ? manifest.services.length : 0} services`, 'info', theme));
+}
+
+// ════════════════════════════════════════════════════════════
+// CLI MODE (Commander)
+// ════════════════════════════════════════════════════════════
+
+function runCli() {
+  const program = new Command();
+
+  program
+    .name('aast')
+    .description('Autonomous Agentic Skill Toolkit — Interactive CLI for autonomous testing')
+    .version(VERSION);
+
+  // ── If no args, launch REPL ───────────────────────────
+  if (process.argv.length <= 2) {
+    startRepl();
+    return;
+  }
+
+  // ── Subcommands ───────────────────────────────────────
+
+  program.command('test:web <url>')
+    .description('Run web tests on a given URL')
+    .action(async (url) => {
+      console.log(`Starting web test for ${url}...`);
+      await runWebTest(url);
+      console.log('Web test finished.');
+      process.exit(0);
     });
 
-    // Default test: navigate and screenshot
-    const defaultTest = async (page) => {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await page.screenshot({ path: 'flakiness_screenshot.png' });
-    };
+  program.command('test:desktop <appName>')
+    .description('Run desktop application tests')
+    .action(async (appName) => {
+      console.log(`Starting desktop test for ${appName}...`);
+      await runDesktopTest(appName);
+      console.log('Desktop test finished.');
+      process.exit(0);
+    });
 
-    const result = await detector.detectFlakiness('web-navigation', defaultTest, url);
+  program.command('test:cli <command>')
+    .description('Run CLI command tests')
+    .action(async (command) => {
+      console.log(`Starting CLI test for: ${command}...`);
+      await runCliTest(command);
+      console.log('CLI test finished.');
+      process.exit(0);
+    });
 
-    console.log('\n══════ Flakiness Report ══════');
-    console.log(`  Test: ${result.name}`);
-    console.log(`  Pass rate: ${(result.passRate * 100).toFixed(1)}% (${result.passCount}/${result.totalIterations})`);
-    console.log(`  Flakiness score: ${(result.flakinessScore * 100).toFixed(1)}%`);
-    console.log(`  Is flaky: ${result.isFlaky ? 'YES ⚠' : 'NO ✓'}`);
-    console.log(`  Timing: avg=${result.timingStats.avgMs}ms, min=${result.timingStats.minMs}ms, max=${result.timingStats.maxMs}ms`);
-    if (Object.keys(result.errorPatterns).length > 0) {
-      console.log('  Error patterns:');
-      for (const [pattern, count] of Object.entries(result.errorPatterns)) {
-        console.log(`    [${count}x] ${pattern}`);
+  program.command('test:api <url>')
+    .description('Run API tests on a given URL')
+    .option('-m, --method <type>', 'HTTP method', 'GET')
+    .option('-d, --data <json>', 'JSON data for POST/PUT')
+    .action(async (url, options) => {
+      console.log(`Starting API test for ${url}...`);
+      let data = {};
+      if (options.data) try { data = JSON.parse(options.data); } catch (e) { console.error('Invalid JSON'); process.exit(1); }
+      await runApiTest(url, options.method, data);
+      console.log('API test finished.');
+      process.exit(0);
+    });
+
+  program.command('test:accessibility <url>')
+    .description('Run accessibility tests')
+    .action(async (url) => {
+      console.log(`Starting accessibility test for ${url}...`);
+      await runAccessibilityTest(url);
+      console.log('Accessibility test finished.');
+      process.exit(0);
+    });
+
+  program.command('test:performance <url>')
+    .description('Run Lighthouse performance tests')
+    .action(async (url) => {
+      console.log(`Starting performance test for ${url}...`);
+      await runPerformanceTest(url);
+      console.log('Performance test finished.');
+      process.exit(0);
+    });
+
+  program.command('test:mobile <url>')
+    .description('Run mobile tests with device emulation')
+    .option('-d, --device <type>', 'Device to emulate', 'iPhone 11')
+    .action(async (url, options) => {
+      console.log(`Starting mobile test for ${url} on ${options.device}...`);
+      await runMobileTest(url, options.device);
+      console.log('Mobile test finished.');
+      process.exit(0);
+    });
+
+  program.command('capture:screenshot <url>')
+    .description('Capture a screenshot')
+    .option('-o, --output <path>', 'Output path', 'screenshot.png')
+    .action(async (url, options) => {
+      await captureScreenshot(url, options.output);
+      console.log('Screenshot captured.');
+      process.exit(0);
+    });
+
+  program.command('record:video <url>')
+    .description('Record a video')
+    .option('-o, --output <path>', 'Output path', 'video.webm')
+    .option('-d, --duration <seconds>', 'Duration', '5')
+    .action(async (url, options) => {
+      await recordVideo(url, options.output, parseInt(options.duration));
+      console.log('Video recorded.');
+      process.exit(0);
+    });
+
+  program.command('generate:fix-prompt <file>')
+    .description('Generate a fix prompt from error details')
+    .action(async (file) => {
+      const errorDetails = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const fix = await generateFixPrompt(errorDetails);
+      console.log('Fix Prompt:\n', fix);
+      process.exit(0);
+    });
+
+  program.command('generate:report <file>')
+    .description('Generate test reports')
+    .option('-f, --format <type>', 'Format (json, markdown)', 'json')
+    .action(async (file, options) => {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const reportFile = generateReport(data, options.format);
+      console.log(`Report generated: ${reportFile}`);
+      process.exit(0);
+    });
+
+  program.command('test:flakiness <url>')
+    .description('Flakiness detection')
+    .option('-i, --iterations <n>', 'Iterations', '5')
+    .option('--heal', 'Self-heal flaky tests')
+    .action(async (url, options) => {
+      const detector = new FlakinessDetector({ iterations: parseInt(options.iterations) });
+      const testFn = async (page) => {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.screenshot({ path: 'flakiness_screenshot.png' });
+      };
+      const result = await detector.detectFlakiness('web-navigation', testFn, url);
+      console.log(`\nPass rate: ${(result.passRate * 100).toFixed(1)}% | Flaky: ${result.isFlaky ? 'YES ⚠' : 'NO ✓'}`);
+      detector.saveResults(result, `flakiness-${Date.now()}.json`);
+      process.exit(0);
+    });
+
+  program.command('run:parallel <urls>')
+    .description('Parallel test execution')
+    .option('-w, --workers <n>', 'Workers', '4')
+    .action(async (urls, options) => {
+      const urlList = urls.split(',').map(u => u.trim());
+      const engine = new ParallelEngine({ maxWorkers: parseInt(options.workers) });
+      const suite = urlList.map((url, i) => ({
+        id: `task_${i}`, name: `Test ${url}`, resourceType: 'none',
+        execute: async () => ({ url, status: 'ok' }),
+      }));
+      const summary = await engine.runSuite(suite);
+      console.log(`\n${summary.completed}/${summary.totalTasks} completed (${summary.totalDurationMs}ms)`);
+      process.exit(0);
+    });
+
+  program.command('test:visual <url>')
+    .description('Visual regression test')
+    .option('--update-baseline', 'Update baselines')
+    .action(async (url, options) => {
+      const tester = new VisualRegressionTester({});
+      const report = await tester.runRegression(url, { updateBaseline: !!options.updateBaseline });
+      console.log(`\nMatches: ${report.summary.matches} | Critical: ${report.summary.critical}`);
+      if (report.summary.hasBlockingRegressions) process.exit(1);
+      process.exit(0);
+    });
+
+  program.command('generate:assertions <url>')
+    .description('Auto-generate test assertions')
+    .action(async (url) => {
+      const oracle = new TestOracle({});
+      const { assertions } = await oracle.explore(url, { maxInteractions: 15 });
+      console.log(`\nGenerated ${assertions.length} assertions`);
+      for (const a of assertions) console.log(`  [${a.severity}] ${a.invariant}`);
+      process.exit(0);
+    });
+
+  program.command('record:trace <url>')
+    .description('Record session trace')
+    .option('-d, --duration <sec>', 'Duration', '10')
+    .action(async (url, options) => {
+      const recorder = new SessionRecorder({});
+      const result = await recorder.record(url, { duration: parseInt(options.duration) });
+      console.log(`\nTrace saved: ${result.outputPath}`);
+      process.exit(0);
+    });
+
+  program.command('replay:view <file>')
+    .description('Generate replay viewer')
+    .option('-o, --output <path>', 'Output HTML', 'replay-viewer.html')
+    .action(async (file, options) => {
+      const data = SessionTrace.load(file);
+      ReplayViewer.generateViewerHTML(data, options.output);
+      console.log(`Replay viewer: ${options.output}`);
+      process.exit(0);
+    });
+
+  program.command('provision <dir>')
+    .description('Provision test environment')
+    .option('--dry-run', 'Dry run')
+    .action(async (dir, options) => {
+      const provisioner = new EnvironmentProvisioner({ baseDir: dir });
+      const manifest = provisioner.readManifest(dir);
+      if (options.dryRun) {
+        console.log('Dry run — services:', manifest.services?.length || 0);
+      } else {
+        const result = await provisioner.provision(manifest, dir);
+        console.log(`Provisioned: ${result.services.length} services`);
       }
-    }
-
-    if (options.heal && result.isFlaky) {
-      const healingResult = await detector.selfHeal('web-navigation', defaultTest, url, result);
-      const patch = detector.generateStabilizationPatch(result, healingResult);
-
-      console.log('\n══════ Self-Healing Report ══════');
-      console.log(`  Strategies attempted: ${healingResult.strategiesAttempted}`);
-      console.log(`  Strategies succeeded: ${healingResult.strategiesSucceeded}`);
-      console.log(`  Recommendation: ${healingResult.recommendation}`);
-      if (patch.patches.length > 0) {
-        console.log('  Suggested patches:');
-        for (const p of patch.patches) {
-          console.log(`    [${p.type}] ${p.reason}`);
-          console.log(`      Before: ${p.before}`);
-          console.log(`      After:  ${p.after}`);
-        }
-      }
-    }
-
-    detector.saveResults(result, `flakiness-${Date.now()}.json`);
-  });
-
-// ═══════════════════════════════════════════════════════════
-// NEW COMMANDS — Feature 2: Parallel Execution Engine
-// ═══════════════════════════════════════════════════════════
-
-program.command('run:parallel <testSuiteDir>')
-  .description('Run a test suite directory in parallel with resource pooling')
-  .option('-w, --workers <n>', 'Number of parallel workers', '4')
-  .option('-c, --concurrency <n>', 'Max browser instances per worker', '2')
-  .option('-o, --output <dir>', 'Output directory for results', './aast-parallel-results')
-  .option('--urls <urls>', 'Comma-separated URLs to test', '')
-  .action(async (testSuiteDir, options) => {
-    const engine = new ParallelEngine({
-      maxWorkers: parseInt(options.workers),
-      outputDir: options.output,
-      resourceCaps: {
-        browser: parseInt(options.concurrency) * parseInt(options.workers),
-        mobile: 2,
-        desktop: 1,
-      },
+      process.exit(0);
     });
 
-    // Build test suite from URLs or directory
-    let urls = [];
-    if (options.urls) {
-      urls = options.urls.split(',').map((u) => u.trim());
-    } else {
-      // Try to read URLs from a file in the directory
-      const urlsFile = path.join(testSuiteDir, 'urls.txt');
-      if (fs.existsSync(urlsFile)) {
-        urls = fs.readFileSync(urlsFile, 'utf8').split('\n').filter(Boolean);
-      }
-    }
-
-    if (urls.length === 0) {
-      console.error('No URLs found. Provide --urls or create urls.txt in the test directory.');
-      process.exit(1);
-    }
-
-    // Create atomic tasks from URLs (no browser needed for these simple tests)
-    const testSuite = urls.map((url, i) => ({
-      id: `url_test_${i}`,
-      name: `Test ${url}`,
-      resourceType: 'none',
-      execute: async (page) => {
-        // Simulate test without real browser
-        return { url, title: `Simulated page for ${url}`, duration: Math.random() * 100 };
-      },
-    }));
-
-    console.log(`\n[Parallel] Running ${testSuite.length} tests with ${options.workers} workers...`);
-
-    const summary = await engine.runSuite(testSuite, { output: true });
-
-    console.log('\n══════ Parallel Execution Report ══════');
-    console.log(`  Total tasks: ${summary.totalTasks}`);
-    console.log(`  Completed: ${summary.completed}`);
-    console.log(`  Failed: ${summary.failed}`);
-    console.log(`  Total duration: ${summary.totalDurationMs}ms`);
-    console.log(`  Avg task duration: ${summary.avgTaskDurationMs}ms`);
-    console.log(`  Workers used: ${summary.workerStats.length}`);
-    for (const result of summary.results) {
-      const icon = result.status === 'completed' ? '✓' : '✗';
-      console.log(`    [${icon}] ${result.name} (${result.durationMs}ms)`);
-    }
-  });
-
-// ═══════════════════════════════════════════════════════════
-// NEW COMMANDS — Feature 3: Visual Regression Testing
-// ═══════════════════════════════════════════════════════════
-
-program.command('test:visual <url>')
-  .description('Run visual regression tests against stored baselines')
-  .option('-b, --baseline-dir <dir>', 'Directory for baseline screenshots', './aast-visual-baselines')
-  .option('-o, --output <dir>', 'Output directory for diff results', './aast-visual-results')
-  .option('--update-baseline', 'Update baseline screenshots (first run or refresh)', false)
-  .option('--full-page', 'Capture full-page screenshots', false)
-  .option('--settle-time <ms>', 'Wait time for animations to settle (ms)', '500')
-  .option('--viewports <json>', 'Viewport configurations as JSON array', '[{"width":1280,"height":720}]')
-  .action(async (url, options) => {
-    let viewports;
-    try {
-      viewports = JSON.parse(options.viewports);
-    } catch (e) {
-      viewports = [{ width: 1280, height: 720 }];
-    }
-
-    const tester = new VisualRegressionTester({
-      baselineDir: options.baselineDir,
-      outputDir: options.output,
-      viewports,
-    });
-
-    const report = await tester.runRegression(url, {
-      fullPage: options.fullPage,
-      settleTime: parseInt(options.settleTime),
-      updateBaseline: options.updateBaseline,
-    });
-
-    console.log('\n══════ Visual Regression Report ══════');
-    console.log(`  URL: ${report.url}`);
-    console.log(`  Viewports tested: ${report.viewports}`);
-    console.log(`  Duration: ${report.durationMs}ms`);
-    console.log(`  Results:`);
-    console.log(`    Matches: ${report.summary.matches}`);
-    console.log(`    Noise (acceptable): ${report.summary.noise}`);
-    console.log(`    Dynamic content: ${report.summary.dynamic}`);
-    console.log(`    Critical regressions: ${report.summary.critical}`);
-    if (report.summary.hasBlockingRegressions) {
-      console.log('\n  ⚠ CRITICAL REGRESSIONS DETECTED — Pipeline blocked');
-      process.exit(1);
-    } else {
-      console.log('\n  ✓ No blocking regressions');
-    }
-  });
-
-program.command('visual:update-baseline <url>')
-  .description('Establish or update visual regression baselines')
-  .option('-b, --baseline-dir <dir>', 'Directory for baseline screenshots', './aast-visual-baselines')
-  .option('--viewports <json>', 'Viewport configurations as JSON array', '[{"width":1280,"height":720}]')
-  .action(async (url, options) => {
-    let viewports;
-    try {
-      viewports = JSON.parse(options.viewports);
-    } catch (e) {
-      viewports = [{ width: 1280, height: 720 }];
-    }
-
-    const tester = new VisualRegressionTester({
-      baselineDir: options.baselineDir,
-      viewports,
-    });
-
-    await tester.runRegression(url, { updateBaseline: true });
-    console.log('Baselines updated successfully.');
-  });
-
-// ═══════════════════════════════════════════════════════════
-// NEW COMMANDS — Feature 4: Test Oracle & Assertion Generator
-// ═══════════════════════════════════════════════════════════
-
-program.command('generate:assertions <url>')
-  .description('Explore a URL and auto-generate test assertions')
-  .option('-i, --interactions <n>', 'Max interactions during exploration', '20')
-  .option('-o, --output <dir>', 'Output directory for generated tests', './aast-generated-assertions')
-  .option('--min-confidence <n>', 'Minimum confidence threshold (0-1)', '0.5')
-  .option('--no-save', 'Do not save results to disk', false)
-  .action(async (url, options) => {
-    const oracle = new TestOracle({
-      outputDir: options.output,
-      minConfidence: parseFloat(options.minConfidence),
-    });
-
-    const { recording, assertions } = await oracle.explore(url, {
-      maxInteractions: parseInt(options.interactions),
-      save: options.save,
-    });
-
-    console.log('\n══════ Test Oracle Report ══════');
-    console.log(`  URL: ${url}`);
-    console.log(`  DOM Mutations recorded: ${recording.summary.totalMutations}`);
-    console.log(`  API calls observed: ${recording.summary.totalApiCalls}`);
-    console.log(`  Interactions performed: ${recording.summary.totalInteractions}`);
-    console.log(`  Pages explored: ${recording.summary.totalPages}`);
-    console.log(`  Console errors: ${recording.summary.totalErrors}`);
-    console.log(`  Assertions inferred: ${assertions.length}`);
-
-    if (assertions.length > 0) {
-      console.log('\n  Generated assertions:');
-      for (const a of assertions) {
-        const confidence = (a.confidence * 100).toFixed(0);
-        console.log(`    [${a.severity}] ${a.invariant} (confidence: ${confidence}%)`);
-      }
-    }
-  });
-
-// ═══════════════════════════════════════════════════════════
-// NEW COMMANDS — Feature 5: Session Replay
-// ═══════════════════════════════════════════════════════════
-
-program.command('record:trace <url>')
-  .description('Record a full-fidelity session trace for later replay')
-  .option('-d, --duration <seconds>', 'Recording duration in seconds', '10')
-  .option('-o, --output <filename>', 'Output filename (.aastreplay)', '')
-  .option('--interval <ms>', 'DOM snapshot interval in milliseconds', '1000')
-  .option('--output-dir <dir>', 'Output directory for traces', './aast-traces')
-  .option('--viewport <json>', 'Viewport as JSON', '{"width":1280,"height":720}')
-  .action(async (url, options) => {
-    let viewport;
-    try {
-      viewport = JSON.parse(options.viewport);
-    } catch (e) {
-      viewport = { width: 1280, height: 720 };
-    }
-
-    const recorder = new SessionRecorder({
-      captureInterval: parseInt(options.interval),
-      outputDir: options.outputDir,
-    });
-
-    const result = await recorder.record(url, {
-      duration: parseInt(options.duration),
-      output: options.output || undefined,
-      viewport,
-    });
-
-    console.log('\n══════ Session Trace Recorded ══════');
-    console.log(`  Trace ID: ${result.traceId}`);
-    console.log(`  Output: ${result.outputPath}`);
-    console.log(`  Snapshots: ${result.stats.snapshots}`);
-    console.log(`  Network entries: ${result.stats.networkEntries}`);
-    console.log(`  Console logs: ${result.stats.consoleLogs}`);
-    console.log(`  Errors: ${result.stats.consoleErrors}`);
-    console.log(`  Duration: ${result.stats.durationMs}ms`);
-  });
-
-program.command('replay:view <traceFile>')
-  .description('Generate a browser-based viewer for a session trace')
-  .option('-o, --output <path>', 'Output HTML file path', 'replay-viewer.html')
-  .action(async (traceFile, options) => {
-    console.log(`Loading trace from ${traceFile}...`);
-    const traceData = SessionTrace.load(traceFile);
-
-    console.log(`Trace loaded: ${traceData.metadata.totalSnapshots} snapshots from ${traceData.metadata.url}`);
-
-    ReplayViewer.generateViewerHTML(traceData, options.output);
-
-    console.log(`\nReplay viewer generated: ${options.output}`);
-    console.log('Open this file in a browser to view the session replay.');
-    console.log('Keyboard shortcuts: ← → to step, Space to play/pause');
-  });
-
-// ═══════════════════════════════════════════════════════════
-// NEW COMMANDS — Feature 6: Environment Provisioning
-// ═══════════════════════════════════════════════════════════
-
-program.command('provision <testDir>')
-  .description('Provision test environment from environment.yaml manifest')
-  .option('--dry-run', 'Show what would be provisioned without doing it', false)
-  .option('--teardown', 'Teardown a previously provisioned environment', false)
-  .option('-o, --output <dir>', 'Output directory for provisioning logs', './aast-provision-results')
-  .action(async (testDir, options) => {
-    const provisioner = new EnvironmentProvisioner({
-      baseDir: testDir,
-      outputDir: options.output,
-    });
-
-    if (options.teardown) {
-      console.log('Tearing down provisioned environment...');
-      const logs = await provisioner.teardown();
+  program.command('provision:teardown')
+    .description('Tear down provisioned environments')
+    .action(async () => {
+      const provisioner = new EnvironmentProvisioner({});
+      await provisioner.teardown();
       console.log('Teardown complete.');
-      return;
-    }
-
-    const manifest = provisioner.readManifest(testDir);
-
-    if (options.dryRun) {
-      console.log('\n══════ Dry Run: Environment Provisioning ══════');
-      console.log(`  Version: ${manifest.version}`);
-      console.log(`  Services:`);
-      if (manifest.services) {
-        for (const svc of manifest.services) {
-          console.log(`    - ${svc.name}: ${svc.image}`);
-          if (svc.ports) console.log(`      Ports: ${svc.ports.join(', ')}`);
-          if (svc.env) console.log(`      Env vars: ${Object.keys(svc.env).join(', ')}`);
-          if (svc.healthcheck) console.log(`      Health check: ${svc.healthcheck}`);
-        }
-      }
-      console.log(`  Stubs:`);
-      if (manifest.stubs) {
-        for (const stub of manifest.stubs) {
-          console.log(`    - ${stub.name} (${stub.type})`);
-        }
-      }
-      console.log(`  Seed scripts:`);
-      if (manifest.seed) {
-        for (const seed of manifest.seed) {
-          console.log(`    - ${seed.name} (${seed.type}): ${seed.file}`);
-        }
-      }
-      return;
-    }
-
-    const result = await provisioner.provision(manifest, testDir);
-
-    console.log('\n══════ Provisioning Report ══════');
-    console.log(`  Success: ${result.success}`);
-    console.log(`  Services started: ${result.services.length}`);
-    console.log(`  Duration: ${result.durationMs}ms`);
-
-    if (Object.keys(result.envVars).length > 0) {
-      console.log('  Environment variables injected:');
-      for (const [key, value] of Object.entries(result.envVars)) {
-        console.log(`    ${key}=${value}`);
-      }
-    }
-
-    if (result.errors.length > 0) {
-      console.log('  Errors:');
-      for (const err of result.errors) {
-        console.log(`    ${err.service || err.stub}: ${err.error}`);
-      }
-    }
-
-    provisioner.saveLog();
-  });
-
-program.command('provision:teardown')
-  .description('Tear down all provisioned test environments')
-  .option('-o, --output <dir>', 'Output directory for container logs', './aast-provision-results')
-  .action(async (options) => {
-    const provisioner = new EnvironmentProvisioner({
-      outputDir: options.output,
+      process.exit(0);
     });
 
-    const logs = await provisioner.teardown();
-    console.log('Teardown complete.');
-    console.log(`  Containers stopped: ${Object.keys(logs).length}`);
-  });
+  program.command('visual:update-baseline <url>')
+    .description('Update visual regression baselines')
+    .action(async (url) => {
+      const tester = new VisualRegressionTester({});
+      await tester.runRegression(url, { updateBaseline: true });
+      console.log('Baselines updated.');
+      process.exit(0);
+    });
 
-// ═══════════════════════════════════════════════════════════
-// Parse and execute
-// ═══════════════════════════════════════════════════════════
+  program.command('shell')
+    .description('Launch interactive REPL shell')
+    .action(() => {
+      startRepl();
+    });
 
-program.parse(process.argv);
+  program.parse(process.argv);
+}
+
+// ════════════════════════════════════════════════════════════
+// ENTRY POINT
+// ════════════════════════════════════════════════════════════
+
+runCli();

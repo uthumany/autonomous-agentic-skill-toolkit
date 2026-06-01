@@ -1,13 +1,14 @@
 {
   "name": "autonomous-agentic-skill-toolkit",
-  "version": "0.2.0",
-  "description": "Open-source autonomous testing skill for web apps, mobile apps, desktop apps, CLI tools, and IDE workflows. Now with flakiness detection, parallel execution, visual regression, AI test oracle, session replay, and environment provisioning.",
+  "version": "0.2.1",
+  "description": "Autonomous Agentic Skill Toolkit — Interactive CLI for autonomous testing with flakiness detection, parallel execution, visual regression, AI test oracle, session replay, and environment provisioning.",
   "main": "src/index.js",
   "bin": {
     "aast": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
+    "shell": "node src/index.js shell",
     "test": "node --test tests/*.test.js",
     "test:flakiness": "node src/index.js test:flakiness https://example.com --iterations 3",
     "test:visual": "node src/index.js test:visual https://example.com --update-baseline",
@@ -19,21 +20,24 @@
     "agentic",
     "testing",
     "automation",
+    "cli",
+    "interactive",
     "web",
     "mobile",
     "desktop",
-    "cli",
-    "ide",
-    "ui/ux",
     "flakiness",
     "parallel",
     "visual-regression",
     "session-replay",
     "provisioning",
-    "test-oracle"
+    "test-oracle",
+    "mcp"
   ],
   "author": "uthuman & co",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "commander": "^12.0.0",
     "playwright": "^1.44.0",
