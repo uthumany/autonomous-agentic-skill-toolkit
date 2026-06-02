@@ -1,6 +1,6 @@
 {
   "name": "uthy-agentic-os",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "UTHY AGENTIC OS — Interactive CLI with cyberpunk HUD, chat interface, file upload, and 25 themes. The autonomous agentic operating system by uthuman & co.",
   "main": "src/index.js",
   "bin": {
