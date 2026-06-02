@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * AAST — Autonomous Agentic Skill Toolkit
+ * UTHY AGENTIC OS — Autonomous Agentic Operating System
  * Interactive CLI with REPL, themes, ASCII art, and full test automation.
  *
  * Usage:
- *   aast                    → Interactive REPL mode
- *   aast <command> [opts]   → Direct command execution
- *   aast --help             → Show help
- *   aast --version          → Show version
+ *   uthy                    → Interactive REPL mode
+ *   uthy <command> [opts]   → Direct command execution
+ *   uthy --help             → Show help
+ *   uthy --version          → Show version
  */
 
 const { Command } = require('commander');
@@ -44,12 +44,19 @@ const { TestOracle } = require('./modules/oracle');
 const { SessionRecorder, SessionTrace, ReplayViewer } = require('./modules/session_replay');
 const { EnvironmentProvisioner } = require('./modules/provisioner');
 
+// ── Chat Module ─────────────────────────────────────────────
+const {
+  parseAttachments, readAttachedFile, renderChatPrompt,
+  renderChatMessage, renderFileTree, walkDirectory,
+  getFileTypeInfo, formatFileSize,
+} = require('./modules/chat');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
 
-const VERSION = '0.2.1';
-const CONFIG_DIR = path.join(os.homedir(), '.aast');
+const VERSION = '1.0.0';
+const CONFIG_DIR = path.join(os.homedir(), '.uthy');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const HISTORY_FILE = path.join(CONFIG_DIR, 'history');
 
@@ -89,7 +96,7 @@ function startRepl() {
   console.log('\n'.repeat(hudHeight));
   console.log(renderBanner(theme, config.compactBanner));
   console.log('');
-  console.log(colorize(`  Welcome to AAST v${VERSION} — Your Autonomous Testing Companion`, 'info', theme));
+  console.log(colorize(`  Welcome to UTHY AGENTIC OS v${VERSION} — Your Autonomous Testing Companion`, 'info', theme));
   console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
   console.log('');
 
@@ -99,7 +106,7 @@ function startRepl() {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: `${colorize('aast', 'secondary', theme)}${colorize('>', 'primary', theme)} `,
+    prompt: `${colorize('uthy', 'secondary', theme)}${colorize('>', 'primary', theme)} `,
     historySize: config.historySize || 100,
     completer: (line) => {
       const cmds = [
@@ -110,6 +117,7 @@ function startRepl() {
         'record:trace', 'record:video', 'capture:screenshot',
         'replay:view', 'provision', 'provision:teardown', 'visual:update-baseline',
         'about', 'modules', 'status', 'social', 'hud', 'footer',
+        'chat', 'attach', 'files', 'tree', 'upload',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
       return [hits.length ? hits : cmds, line];
@@ -184,6 +192,77 @@ function startRepl() {
 
         case 'social':
           showSocialLinks(theme);
+          break;
+
+        case 'chat':
+          // Show chat input panel
+          console.log('');
+          console.log(renderChatPrompt(theme, []).join('\n'));
+          console.log('');
+          console.log(colorize('  Chat panel ready. Type @filename to attach files.', 'info', theme));
+          break;
+
+        case 'attach':
+        case '@':
+          // File attachment handler
+          if (!args[0]) {
+            console.log(colorize('  Usage: attach <file-path>', 'warn', theme));
+            console.log(colorize('  Example: attach ./src/index.js', 'muted', theme));
+            break;
+          }
+          const attPath = args.join(' ');
+          const attResult = readAttachedFile(attPath);
+          if (attResult.error) {
+            console.log(colorize(`  ✗ ${attResult.error}`, 'error', theme));
+          } else {
+            console.log('');
+            console.log(colorize(`  ✓ Attached: ${attResult.typeInfo.icon} ${attResult.name}`, 'success', theme));
+            console.log(colorize(`    Path: ${attResult.path}`, 'muted', theme));
+            console.log(colorize(`    Size: ${attResult.sizeFormatted}`, 'muted', theme));
+            if (attResult.isText) {
+              console.log(colorize(`    Lines: ${attResult.lines}`, 'muted', theme));
+              // Show preview (first 10 lines)
+              const preview = attResult.content.split('\n').slice(0, 10);
+              console.log('');
+              console.log(colorize('  ── Preview ──', 'muted', theme));
+              for (const line of preview) {
+                console.log(`    ${colorize(line, 'muted', theme)}`);
+              }
+              if (attResult.lines > 10) {
+                console.log(colorize(`    ... (${attResult.lines - 10} more lines)`, 'muted', theme));
+              }
+            }
+            console.log('');
+          }
+          break;
+
+        case 'files':
+        case 'tree':
+          // Show file tree of current directory
+          const treeDir = args[0] || '.';
+          const treeEntries = walkDirectory(treeDir, 2);
+          console.log('');
+          console.log(colorize(`  📁 ${path.resolve(treeDir)}/`, 'primary', theme));
+          console.log(renderFileTree(treeEntries, theme, '  ').join('\n'));
+          console.log('');
+          break;
+
+        case 'upload':
+          // Upload prompt — shows supported file types
+          console.log('');
+          console.log(renderBox([
+            'Supported file types:',
+            '  📜 Code: .js .ts .py .go .rs .java .c .cpp .rb .php',
+            '  📝 Docs: .md .txt .rst .tex .log .csv',
+            '  🌐 Web:  .html .css .vue .svelte .jsx .tsx',
+            '  ⚙️  Config: .json .yaml .yml .toml .ini .env',
+            '  🖼️  Images: .png .jpg .gif .svg .webp .bmp',
+            '  📄 Files: .pdf .doc .docx .xls .xlsx .ppt .pptx',
+            '  📦 Archives: .zip .tar .gz .7z .rar',
+            '',
+            'Usage: attach <file-path> or @file in chat input',
+            'Max file size: 10 MB',
+          ], theme, 'FILE UPLOAD'));
           break;
 
         case 'hud':
@@ -312,7 +391,7 @@ function showHelp(theme) {
         { cmd: 'generate:assertions <url>', desc: 'AI test oracle — auto-generate assertions' },
         { cmd: 'generate:report <file> [fmt]', desc: 'Generate JSON/Markdown report' },
         { cmd: 'capture:screenshot <url>', desc: 'Capture screenshot' },
-        { cmd: 'record:trace <url> [sec]', desc: 'Record session trace (.aastreplay)' },
+        { cmd: 'record:trace <url> [sec]', desc: 'Record session trace (.uthyreplay)' },
         { cmd: 'run:parallel <url1,url2>', desc: 'Parallel execution engine' },
       ],
     },
@@ -332,9 +411,18 @@ function showHelp(theme) {
         { cmd: 'status', desc: 'System status' },
         { cmd: 'social', desc: 'Show social media links' },
         { cmd: 'hud', desc: 'Refresh the holographic HUD overlay' },
-        { cmd: 'about', desc: 'About AAST' },
+        { cmd: 'about', desc: 'About UTHY AGENTIC OS' },
         { cmd: 'clear', desc: 'Clear screen' },
-        { cmd: 'quit / exit', desc: 'Exit AAST' },
+        { cmd: 'quit / exit', desc: 'Exit UTHY AGENTIC OS' },
+      ],
+    },
+    {
+      title: '💬 Chat & Files',
+      items: [
+        { cmd: 'chat', desc: 'Show chat input panel' },
+        { cmd: 'attach <file>', desc: 'Attach a file for processing' },
+        { cmd: 'files [dir]', desc: 'Show file tree of directory' },
+        { cmd: 'upload', desc: 'Show supported file types' },
       ],
     },
   ];
@@ -363,17 +451,20 @@ function showThemes(theme) {
 function showAbout(theme) {
   console.log('');
   console.log(renderBox([
-    `${colorize('AAST', 'secondary', theme)} — Autonomous Agentic Skill Toolkit`,
+    `${colorize('UTHY AGENTIC OS', 'secondary', theme)} — Autonomous Agentic Operating System`,
     `${colorize('Version', 'muted', theme)}: ${VERSION}`,
     `${colorize('License', 'muted', theme)}: MIT`,
     `${colorize('Author', 'muted', theme)}: uthuman & co`,
     '',
-    'Open-source autonomous testing toolkit with:',
+    'Open-source agentic operating system with:',
+    '  • Cyberpunk HUD overlay with live clock',
+    '  • 25 terminal themes with color palettes',
+    '  • Chat input panel with file upload',
     '  • Flakiness detection & self-healing',
     '  • Parallel execution with resource pooling',
     '  • Visual regression (perceptual diff + SSIM)',
     '  • AI test oracle & assertion generator',
-    '  • Cross-platform session replay (.aastreplay)',
+    '  • Cross-platform session replay (.uthyreplay)',
     '  • Infrastructure-as-test-code provisioning',
   ], theme, 'ABOUT'));
 }
@@ -410,7 +501,7 @@ function showStatus(theme) {
   console.log(colorize('  ── SYSTEM STATUS ────────────────────────────────────', 'muted', theme));
   console.log(`    ${colorize('Platform', 'info', theme)}:    ${process.platform} ${process.arch}`);
   console.log(`    ${colorize('Node.js', 'info', theme)}:     ${process.version}`);
-  console.log(`    ${colorize('AAST', 'info', theme)}:       v${VERSION}`);
+  console.log(`    ${colorize('UTHY AGENTIC OS', 'info', theme)}:       v${VERSION}`);
   console.log(`    ${colorize('Memory', 'info', theme)}:     ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`);
   console.log(`    ${colorize('Uptime', 'info', theme)}:     ${Math.round(process.uptime())}s`);
   console.log(`    ${colorize('Config', 'info', theme)}:     ${CONFIG_FILE}`);
@@ -503,7 +594,7 @@ async function cmdPerformance(url, theme) {
 
 async function cmdFlakiness(url, iterations, theme) {
   console.log(colorize(`\n  ▶ Flakiness detection: ${url} (${iterations} iterations)`, 'info', theme));
-  const detector = new FlakinessDetector({ iterations, outputDir: './aast-flakiness-results' });
+  const detector = new FlakinessDetector({ iterations, outputDir: './uthy-flakiness-results' });
   const testFn = async (page) => {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.screenshot({ path: 'flakiness_screenshot.png' });
@@ -520,7 +611,7 @@ async function cmdFlakiness(url, iterations, theme) {
 
 async function cmdVisual(url, theme) {
   console.log(colorize(`\n  ▶ Visual regression: ${url}`, 'info', theme));
-  const tester = new VisualRegressionTester({ baselineDir: './aast-visual-baselines', outputDir: './aast-visual-results' });
+  const tester = new VisualRegressionTester({ baselineDir: './uthy-visual-baselines', outputDir: './uthy-visual-results' });
   const report = await tester.runRegression(url, { updateBaseline: false });
   console.log(colorize(`  Matches: ${report.summary.matches} | Noise: ${report.summary.noise} | Critical: ${report.summary.critical}`, 
     report.summary.hasBlockingRegressions ? 'error' : 'success', theme));
@@ -540,7 +631,7 @@ async function cmdParallel(urls, theme) {
 
 async function cmdOracle(url, theme) {
   console.log(colorize(`\n  ▶ Test Oracle: exploring ${url}`, 'info', theme));
-  const oracle = new TestOracle({ outputDir: './aast-generated-assertions' });
+  const oracle = new TestOracle({ outputDir: './uthy-generated-assertions' });
   const { assertions } = await oracle.explore(url, { maxInteractions: 10 });
   console.log(colorize(`  ✓ Generated ${assertions.length} assertions`, 'success', theme));
   for (const a of assertions.slice(0, 5)) {
@@ -550,7 +641,7 @@ async function cmdOracle(url, theme) {
 
 async function cmdRecordTrace(url, duration, theme) {
   console.log(colorize(`\n  ▶ Recording trace: ${url} (${duration}s)`, 'info', theme));
-  const recorder = new SessionRecorder({ outputDir: './aast-traces' });
+  const recorder = new SessionRecorder({ outputDir: './uthy-traces' });
   const result = await recorder.record(url, { duration });
   console.log(colorize(`  ✓ Trace saved: ${result.outputPath}`, 'success', theme));
   console.log(`    Snapshots: ${result.stats.snapshots} | Network: ${result.stats.networkEntries} | Errors: ${result.stats.consoleErrors}`);
@@ -592,8 +683,8 @@ function runCli() {
   const program = new Command();
 
   program
-    .name('aast')
-    .description('Autonomous Agentic Skill Toolkit — Interactive CLI for autonomous testing')
+    .name('uthy')
+    .description('UTHY AGENTIC OS — Autonomous Agentic Operating System with cyberpunk HUD, chat, and 25 themes')
     .version(VERSION);
 
   // ── If no args, launch REPL ───────────────────────────

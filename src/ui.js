@@ -1,6 +1,6 @@
 /**
- * AAST Banner, Themes & UI Rendering
- * Provides colorful ASCII art banners, themed output, and terminal UI helpers.
+ * UTHY AGENTIC OS — Banner, Themes & UI Rendering
+ * Provides colorful ASCII art banners, themed output, cyberpunk HUD, and terminal UI helpers.
  */
 
 const THEMES = {
@@ -74,18 +74,312 @@ const THEMES = {
     reset: '\x1b[0m',
     bannerGradient: ['\x1b[38;5;201m', '\x1b[38;5;165m', '\x1b[38;5;129m', '\x1b[38;5;93m'],
   },
+  obsidian: {
+    name: 'Obsidian',
+    primary: '\x1b[38;5;75m',
+    secondary: '\x1b[38;5;176m',
+    accent: '\x1b[38;5;108m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;167m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;108m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;75m', '\x1b[38;5;176m', '\x1b[38;5;108m', '\x1b[38;5;73m'],
+  },
+  neonblast: {
+    name: 'Neon Blast',
+    primary: '\x1b[38;5;81m',
+    secondary: '\x1b[38;5;207m',
+    accent: '\x1b[38;5;85m',
+    warn: '\x1b[38;5;220m',
+    error: '\x1b[38;5;204m',
+    info: '\x1b[38;5;51m',
+    success: '\x1b[38;5;85m',
+    muted: '\x1b[38;5;238m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;207m', '\x1b[38;5;81m', '\x1b[38;5;85m', '\x1b[38;5;220m'],
+  },
+  forest: {
+    name: 'Forest',
+    primary: '\x1b[38;5;109m',
+    secondary: '\x1b[38;5;139m',
+    accent: '\x1b[38;5;144m',
+    warn: '\x1b[38;5;143m',
+    error: '\x1b[38;5;137m',
+    info: '\x1b[38;5;72m',
+    success: '\x1b[38;5;144m',
+    muted: '\x1b[38;5;238m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;72m', '\x1b[38;5;144m', '\x1b[38;5;109m', '\x1b[38;5;139m'],
+  },
+  amber: {
+    name: 'Amber',
+    primary: '\x1b[38;5;221m',
+    secondary: '\x1b[38;5;209m',
+    accent: '\x1b[38;5;220m',
+    warn: '\x1b[38;5;220m',
+    error: '\x1b[38;5;202m',
+    info: '\x1b[38;5;214m',
+    success: '\x1b[38;5;221m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;202m', '\x1b[38;5;214m', '\x1b[38;5;220m', '\x1b[38;5;221m'],
+  },
+  polar: {
+    name: 'Polar',
+    primary: '\x1b[38;5;67m',
+    secondary: '\x1b[38;5;103m',
+    accent: '\x1b[38;5;72m',
+    warn: '\x1b[38;5;137m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;67m',
+    success: '\x1b[38;5;72m',
+    muted: '\x1b[38;5;249m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;61m', '\x1b[38;5;67m', '\x1b[38;5;109m', '\x1b[38;5;72m'],
+  },
+  rusted: {
+    name: 'Rusted',
+    primary: '\x1b[38;5;103m',
+    secondary: '\x1b[38;5;139m',
+    accent: '\x1b[38;5;108m',
+    warn: '\x1b[38;5;173m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;108m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;131m', '\x1b[38;5;173m', '\x1b[38;5;108m', '\x1b[38;5;103m'],
+  },
+  cobalt: {
+    name: 'Cobalt',
+    primary: '\x1b[38;5;68m',
+    secondary: '\x1b[38;5;140m',
+    accent: '\x1b[38;5;115m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;167m',
+    info: '\x1b[38;5;74m',
+    success: '\x1b[38;5;115m',
+    muted: '\x1b[38;5;237m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;24m', '\x1b[38;5;68m', '\x1b[38;5;140m', '\x1b[38;5;74m'],
+  },
+  sepia: {
+    name: 'Sepia',
+    primary: '\x1b[38;5;60m',
+    secondary: '\x1b[38;5;96m',
+    accent: '\x1b[38;5;65m',
+    warn: '\x1b[38;5;94m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;65m',
+    muted: '\x1b[38;5;181m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;131m', '\x1b[38;5;94m', '\x1b[38;5;65m', '\x1b[38;5;60m'],
+  },
+  midnight: {
+    name: 'Midnight',
+    primary: '\x1b[38;5;111m',
+    secondary: '\x1b[38;5;176m',
+    accent: '\x1b[38;5;114m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;168m',
+    info: '\x1b[38;5;73m',
+    success: '\x1b[38;5;114m',
+    muted: '\x1b[38;5;237m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;68m', '\x1b[38;5;111m', '\x1b[38;5;176m', '\x1b[38;5;116m'],
+  },
+  solarflare: {
+    name: 'Solar Flare',
+    primary: '\x1b[38;5;69m',
+    secondary: '\x1b[38;5;170m',
+    accent: '\x1b[38;5;179m',
+    warn: '\x1b[38;5;214m',
+    error: '\x1b[38;5;202m',
+    info: '\x1b[38;5;38m',
+    success: '\x1b[38;5;179m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;202m', '\x1b[38;5;214m', '\x1b[38;5;69m', '\x1b[38;5;170m'],
+  },
+  slate: {
+    name: 'Slate',
+    primary: '\x1b[38;5;110m',
+    secondary: '\x1b[38;5;176m',
+    accent: '\x1b[38;5;150m',
+    warn: '\x1b[38;5;180m',
+    error: '\x1b[38;5;174m',
+    info: '\x1b[38;5;109m',
+    success: '\x1b[38;5;150m',
+    muted: '\x1b[38;5;238m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;104m', '\x1b[38;5;110m', '\x1b[38;5;140m', '\x1b[38;5;176m'],
+  },
+  cherry: {
+    name: 'Cherry',
+    primary: '\x1b[38;5;111m',
+    secondary: '\x1b[38;5;176m',
+    accent: '\x1b[38;5;150m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;167m',
+    info: '\x1b[38;5;73m',
+    success: '\x1b[38;5;150m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;167m', '\x1b[38;5;133m', '\x1b[38;5;111m', '\x1b[38;5;116m'],
+  },
+  glacial: {
+    name: 'Glacial',
+    primary: '\x1b[38;5;68m',
+    secondary: '\x1b[38;5;103m',
+    accent: '\x1b[38;5;72m',
+    warn: '\x1b[38;5;137m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;67m',
+    success: '\x1b[38;5;72m',
+    muted: '\x1b[38;5;109m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;61m', '\x1b[38;5;68m', '\x1b[38;5;72m', '\x1b[38;5;73m'],
+  },
+  ember: {
+    name: 'Ember',
+    primary: '\x1b[38;5;103m',
+    secondary: '\x1b[38;5;139m',
+    accent: '\x1b[38;5;108m',
+    warn: '\x1b[38;5;137m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;108m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;131m', '\x1b[38;5;137m', '\x1b[38;5;108m', '\x1b[38;5;103m'],
+  },
+  lavender: {
+    name: 'Lavender',
+    primary: '\x1b[38;5;111m',
+    secondary: '\x1b[38;5;177m',
+    accent: '\x1b[38;5;150m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;168m',
+    info: '\x1b[38;5;109m',
+    success: '\x1b[38;5;150m',
+    muted: '\x1b[38;5;239m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;140m', '\x1b[38;5;177m', '\x1b[38;5;111m', '\x1b[38;5;116m'],
+  },
+  moss: {
+    name: 'Moss',
+    primary: '\x1b[38;5;103m',
+    secondary: '\x1b[38;5;139m',
+    accent: '\x1b[38;5;108m',
+    warn: '\x1b[38;5;143m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;108m',
+    muted: '\x1b[38;5;237m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;66m', '\x1b[38;5;107m', '\x1b[38;5;108m', '\x1b[38;5;139m'],
+  },
+  crimson: {
+    name: 'Crimson',
+    primary: '\x1b[38;5;105m',
+    secondary: '\x1b[38;5;176m',
+    accent: '\x1b[38;5;150m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;167m',
+    info: '\x1b[38;5;73m',
+    success: '\x1b[38;5;150m',
+    muted: '\x1b[38;5;236m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;167m', '\x1b[38;5;133m', '\x1b[38;5;105m', '\x1b[38;5;116m'],
+  },
+  desert: {
+    name: 'Desert',
+    primary: '\x1b[38;5;103m',
+    secondary: '\x1b[38;5;139m',
+    accent: '\x1b[38;5;144m',
+    warn: '\x1b[38;5;179m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;144m',
+    muted: '\x1b[38;5;237m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;131m', '\x1b[38;5;179m', '\x1b[38;5;107m', '\x1b[38;5;103m'],
+  },
+  steel: {
+    name: 'Steel',
+    primary: '\x1b[38;5;104m',
+    secondary: '\x1b[38;5;139m',
+    accent: '\x1b[38;5;108m',
+    warn: '\x1b[38;5;137m',
+    error: '\x1b[38;5;131m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;108m',
+    muted: '\x1b[38;5;237m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;67m', '\x1b[38;5;104m', '\x1b[38;5;139m', '\x1b[38;5;109m'],
+  },
+  twilight: {
+    name: 'Twilight',
+    primary: '\x1b[38;5;104m',
+    secondary: '\x1b[38;5;176m',
+    accent: '\x1b[38;5;114m',
+    warn: '\x1b[38;5;143m',
+    error: '\x1b[38;5;132m',
+    info: '\x1b[38;5;66m',
+    success: '\x1b[38;5;114m',
+    muted: '\x1b[38;5;237m',
+    bold: '\x1b[1m',
+    reset: '\x1b[0m',
+    bannerGradient: ['\x1b[38;5;67m', '\x1b[38;5;104m', '\x1b[38;5;176m', '\x1b[38;5;109m'],
+  },
 };
 
+// ═══════════════════════════════════════════════════════════
+// ASCII ART BANNER — Qwen CLI Style Gradient
+// ═══════════════════════════════════════════════════════════
+
 const BANNER = `
-\x1b[1m\x1b[38;5;51m    _   ___  ___   ___ _    ___  ___ ___ ___ _____ 
-\x1b[38;5;87m   /_\\ | _ \\/ __| / __| |  / _ \\/ __| __/ __|_   _|
-\x1b[38;5;123m  / _ \\|   /\\__ \\| (__| | | (_) \\__ \\ _| (__  | |  
-\x1b[38;5;159m /_/ \\_\\_|_\\|___/ \\___|_|  \\___/|___/___\\___| |_|  \x1b[0m
+\x1b[1m\x1b[38;5;51m ██╗   ██╗████████╗██╗  ██╗██╗   ██╗
+\x1b[38;5;87m ██║   ██║╚══██╔══╝██║  ██║╚██╗ ██╔╝
+\x1b[38;5;123m ██║   ██║   ██║   ███████║ ╚████╔╝
+\x1b[38;5;159m ██║   ██║   ██║   ██╔══██║  ╚██╔╝
+\x1b[38;5;195m ╚██████╔╝   ██║   ██║  ██║   ██║
+\x1b[38;5;231m  ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ╚═╝\x1b[0m
+\x1b[1m\x1b[38;5;201m    ╔═╗╔═╗╔╦╗╔═╗╔╦╗
+\x1b[38;5;207m    ╠═╣║   ║ ╠═ ║║║
+\x1b[38;5;213m    ╩ ╩╚═╝ ╩ ╚═╝═╩╝\x1b[0m
 `;
 
-const SMALL_BANNER = `\x1b[1m\x1b[38;5;51m  ╔══════════════════════════════════════╗
-  ║   AAST — Agentic Skill Toolkit      ║
-  ╚══════════════════════════════════════╝\x1b[0m`;
+const SMALL_BANNER = `\x1b[1m\x1b[38;5;51m
+  ┌──────────────────────────────────────┐
+  │  ██╗   ██╗████████╗██╗  ██╗██╗   ██╗│
+  │  ██║   ██║╚══██╔══╝██║  ██║╚██╗ ██╔╝│
+  │  ██║   ██║   ██║   ███████║ ╚████╔╝ │
+  │  ╚██████╔╝   ██║   ██║  ██║   ██║   │
+  │   ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ╚═╝  │
+  └──────────────────────────────────────┘\x1b[0m`;
 
 function renderBanner(theme, compact = false) {
   const t = theme || THEMES.cyber;

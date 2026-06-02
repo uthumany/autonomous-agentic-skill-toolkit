@@ -1,10 +1,10 @@
 {
-  "name": "autonomous-agentic-skill-toolkit",
-  "version": "0.2.1",
-  "description": "Autonomous Agentic Skill Toolkit — Interactive CLI for autonomous testing with flakiness detection, parallel execution, visual regression, AI test oracle, session replay, and environment provisioning.",
+  "name": "uthy-agentic-os",
+  "version": "1.0.0",
+  "description": "UTHY AGENTIC OS — Interactive CLI with cyberpunk HUD, chat interface, file upload, and 25 themes. The autonomous agentic operating system by uthuman & co.",
   "main": "src/index.js",
   "bin": {
-    "aast": "src/index.js"
+    "uthy": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -17,11 +17,18 @@
     "provision": "node src/index.js provision ./tests"
   },
   "keywords": [
+    "uthy",
     "agentic",
-    "testing",
-    "automation",
+    "os",
     "cli",
     "interactive",
+    "repl",
+    "cyberpunk",
+    "hud",
+    "chat",
+    "themes",
+    "testing",
+    "automation",
     "web",
     "mobile",
     "desktop",
@@ -31,7 +38,8 @@
     "session-replay",
     "provisioning",
     "test-oracle",
-    "mcp"
+    "mcp",
+    "file-upload"
   ],
   "author": "uthuman & co",
   "license": "MIT",
