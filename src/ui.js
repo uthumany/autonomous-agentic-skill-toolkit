@@ -234,7 +234,8 @@ function renderSocialLinksDetailed(theme) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// FOOTER CARD — Bottom-Right Corner
+// CYBERPUNK HUD OVERLAY — Top-Right Corner
+// Holographic Console Card — Semi-transparent with floating UI
 // ═══════════════════════════════════════════════════════════
 
 function getTerminalSize() {
@@ -259,7 +260,55 @@ function clearLine() {
   return '\x1b[2K';
 }
 
-function renderFooterCard(theme) {
+// ── HUD Decorators ──────────────────────────────────────────
+
+// Scanline divider — dotted holographic separator
+function hudDivider(width, theme) {
+  const t = theme || THEMES.cyber;
+  return `${t.muted}${'┈'.repeat(width)}${t.reset}`;
+}
+
+// Corner brackets — floating targeting markers
+function hudCornerTop(width, theme) {
+  const t = theme || THEMES.cyber;
+  const line = '─'.repeat(width - 2);
+  return `${t.secondary}╭${t.muted}${line}${t.secondary}╮${t.reset}`;
+}
+
+function hudCornerBottom(width, theme) {
+  const t = theme || THEMES.cyber;
+  const line = '─'.repeat(width - 2);
+  return `${t.secondary}╰${t.muted}${line}${t.secondary}╯${t.reset}`;
+}
+
+// Floating side bar — left edge with dim pipe
+function hudRow(content, width, theme) {
+  const t = theme || THEMES.cyber;
+  const stripped = stripAnsi(content);
+  const pad = Math.max(0, width - 3 - stripped.length);
+  return `${t.muted}│${t.reset} ${content}${' '.repeat(pad)}${t.muted}│${t.reset}`;
+}
+
+// HUD marker prefixes
+function hudTag(text, theme) {
+  const t = theme || THEMES.cyber;
+  return `${t.secondary}▸${t.reset} ${text}`;
+}
+
+function hudPip(theme) {
+  const t = theme || THEMES.cyber;
+  return `${t.accent}◆${t.reset}`;
+}
+
+// Glitch header — floating title with angle brackets
+function hudHeader(title, theme) {
+  const t = theme || THEMES.cyber;
+  return `${t.secondary}⟨${t.reset} ${t.bold}${t.primary}${title}${t.reset} ${t.secondary}⟩${t.reset}`;
+}
+
+// ── HUD Card Builder ────────────────────────────────────────
+
+function renderHudCard(theme) {
   const t = theme || THEMES.cyber;
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', {
@@ -267,114 +316,110 @@ function renderFooterCard(theme) {
   });
   const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
 
-  const W = 95; // card inner width — wide enough for all URLs
+  const W = 90; // HUD inner width
   const pad = (s, w) => {
     const len = stripAnsi(s).length;
     return s + ' '.repeat(Math.max(0, w - len));
   };
 
-  // Build clock digits
+  // Clock digits
   const clockLines = renderFlipClock(theme);
 
-  // Build card lines
-  const cardLines = [];
+  const lines = [];
 
-  // Top border with title
-  const titleText = 'uthuman & co';
-  const titleLen = titleText.length;
-  const leftDash = Math.floor((W - titleLen - 4) / 2);
-  const rightDash = W - titleLen - 4 - leftDash;
-  cardLines.push(
-    `${t.secondary}╔${'═'.repeat(leftDash)}╗ ${t.bold}${t.primary}${titleText}${t.reset}${t.secondary} ╔${'═'.repeat(rightDash)}╗${t.reset}`
-  );
+  // ── Top bracket ──
+  lines.push(hudCornerTop(W, theme));
 
-  // Social icons row
-  const iconsRow = renderSocialIconsRow(theme);
-  cardLines.push(`${t.secondary}║${t.reset} ${pad(iconsRow, W - 2)} ${t.secondary}║${t.reset}`);
+  // ── Title row with system indicator ──
+  const title = hudHeader('uthuman & co', theme);
+  const sysLabel = `${t.muted}◈ HOLO.CONSOLE${t.reset}`;
+  const titleRow = `${title}  ${t.muted}━━━${t.reset}  ${sysLabel}`;
+  lines.push(hudRow(titleRow, W, theme));
 
-  // Flip clock (3 rows)
-  const clockPad = '    '; // left padding for clock centering
+  // ── Scanline separator ──
+  lines.push(hudRow(hudDivider(W - 4, theme), W, theme));
+
+  // ── Social icons row with pip markers ──
+  const icons = SOCIAL_LINKS.map(s => {
+    const ico = `\x1b[${s.color}${s.icon}${t.reset}`;
+    return `${ico}`;
+  }).join('  ');
+  lines.push(hudRow(hudTag(icons, theme), W, theme));
+
+  // ── Flip clock with SYS.TIME label ──
   for (const cl of clockLines) {
-    cardLines.push(`${t.secondary}║${t.reset}${clockPad}${pad(cl, W - 6)}  ${t.secondary}║${t.reset}`);
+    const clockTag = `${t.muted}◇${t.reset}`;
+    lines.push(hudRow(`  ${clockTag} ${cl}`, W, theme));
   }
 
-  // Date + time row
-  const dateTimeStr = `${t.info}📅 ${dateStr}  ${t.success}🕐 ${timeStr}${t.reset}`;
-  cardLines.push(`${t.secondary}║${t.reset} ${pad(dateTimeStr, W - 2)} ${t.secondary}║${t.reset}`);
+  // ── Date + time readout ──
+  const dateReadout = `${t.info}▸ ${dateStr}${t.reset}  ${t.muted}┊${t.reset}  ${t.success}◈ ${timeStr}${t.reset}`;
+  lines.push(hudRow(dateReadout, W, theme));
 
-  // Divider
-  cardLines.push(`${t.secondary}╠${'═'.repeat(W)}╣${t.reset}`);
+  // ── Scanline separator ──
+  lines.push(hudRow(hudDivider(W - 4, theme), W, theme));
 
-  // Social links (compact 2-column)
-  const links = SOCIAL_LINKS;
-  for (let i = 0; i < links.length; i += 2) {
-    const a = links[i];
-    const b = links[i + 1];
-    const iconA = `\x1b[${a.color}${a.icon}${t.reset}`;
-    const iconB = b ? `\x1b[${b.color}${b.icon}${t.reset}` : '';
-    const labelA = `${t.primary}${a.label.padEnd(9)}${t.reset}`;
-    const labelB = b ? `${t.primary}${b.label.padEnd(9)}${t.reset}` : '';
-    const urlA = `${t.muted}${a.url}${t.reset}`;
-    const urlB = b ? `${t.muted}${b.url}${t.reset}` : '';
-    const cellA = `${iconA} ${labelA} ${urlA}`;
-    const cellB = b ? `${iconB} ${labelB} ${urlB}` : '';
-    const fullLine = ` ${cellA}   ${cellB}`;
-    cardLines.push(`${t.secondary}║${t.reset}${pad(fullLine, W)}${t.secondary}║${t.reset}`);
+  // ── Social links — single column, HUD-style ──
+  for (const s of SOCIAL_LINKS) {
+    const icon = `\x1b[${s.color}${s.icon}${t.reset}`;
+    const label = `${t.primary}${s.label.padEnd(10)}${t.reset}`;
+    const url = `${t.muted}${s.url}${t.reset}`;
+    const row = `  ${hudPip(theme)}  ${icon}  ${label} ${t.muted}▸${t.reset} ${url}`;
+    lines.push(hudRow(row, W, theme));
   }
 
-  // Divider
-  cardLines.push(`${t.secondary}╠${'═'.repeat(W)}╣${t.reset}`);
+  // ── Scanline separator ──
+  lines.push(hudRow(hudDivider(W - 4, theme), W, theme));
 
-  // Copyright
-  const copyright = `${t.muted}© 2026 uthuman & co. Free & Open Source. All rights reserved.${t.reset}`;
-  cardLines.push(`${t.secondary}║${t.reset} ${pad(copyright, W - 2)} ${t.secondary}║${t.reset}`);
+  // ── Copyright with scanline texture ──
+  const copyright = `${t.muted}░░ © 2026 uthuman & co · Free & Open Source${t.reset}`;
+  lines.push(hudRow(copyright, W, theme));
 
-  // Bottom border
-  cardLines.push(`${t.secondary}╚${'═'.repeat(W)}╝${t.reset}`);
+  // ── Bottom bracket ──
+  lines.push(hudCornerBottom(W, theme));
 
-  return cardLines;
+  return lines;
 }
 
-function renderFooterAtBottom(theme) {
-  const t = theme || THEMES.cyber;
-  const { cols, rows } = getTerminalSize();
-  const cardLines = renderFooterCard(theme);
-  const cardHeight = cardLines.length;
-  const cardWidth = stripAnsi(cardLines[0]).length;
+// ── HUD Positioning — Top-Right Corner ──────────────────────
 
-  // Position card at bottom-left with small margin
-  const startRow = rows - cardHeight - 1;
-  const startCol = 2;
+function renderHudAtTop(theme) {
+  const t = theme || THEMES.cyber;
+  const { cols } = getTerminalSize();
+  const hudLines = renderHudCard(theme);
+  const hudHeight = hudLines.length;
+  const hudWidth = stripAnsi(hudLines[0]).length;
+
+  // Position at top-right: row 1, right-aligned
+  const startRow = 1;
+  const startCol = Math.max(1, cols - hudWidth - 2);
 
   let output = saveCursor();
 
-  // Clear the area and draw card
-  for (let i = 0; i < cardHeight; i++) {
+  // Clear area and draw HUD
+  for (let i = 0; i < hudHeight; i++) {
     output += moveCursor(startRow + i, startCol);
     output += clearLine();
-    // Pad the line to right-align
-    const line = cardLines[i];
-    const lineLen = stripAnsi(line).length;
-    const leftPad = Math.max(0, cardWidth - lineLen);
-    output += ' '.repeat(leftPad) + line;
+    output += hudLines[i];
   }
 
   output += restoreCursor();
   return output;
 }
 
-function startFooterRefresh(theme, intervalMs = 1000) {
+// ── HUD Refresh Loop ────────────────────────────────────────
+
+function startHudRefresh(theme, intervalMs = 1000) {
   const t = theme || THEMES.cyber;
 
-  // Disable line wrap for the footer region
   const draw = () => {
-    process.stdout.write(renderFooterAtBottom(t));
+    process.stdout.write(renderHudAtTop(t));
   };
 
   // Initial draw
   draw();
 
-  // Refresh every second for clock update
+  // Refresh every second for live clock
   const timer = setInterval(draw, intervalMs);
 
   // Handle terminal resize
@@ -400,10 +445,14 @@ module.exports = {
   divider,
   stripAnsi,
   renderFlipClock,
-  renderFooterCard,
-  renderFooterAtBottom,
-  startFooterRefresh,
+  renderHudCard,
+  renderHudAtTop,
+  startHudRefresh,
   renderSocialIconsRow,
   renderSocialLinksDetailed,
   SOCIAL_LINKS,
+  // Legacy aliases for backward compat
+  renderFooterCard: renderHudCard,
+  renderFooterAtBottom: renderHudAtTop,
+  startFooterRefresh: startHudRefresh,
 };

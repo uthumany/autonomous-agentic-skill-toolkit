@@ -21,7 +21,7 @@ const os = require('os');
 const {
   THEMES, renderBanner, renderBox, renderMenu,
   colorize, progressBar, spinner, divider,
-  startFooterRefresh, renderFooterCard, stripAnsi,
+  startHudRefresh, renderHudCard, stripAnsi,
 } = require('./ui');
 
 // ── Core Modules ────────────────────────────────────────────
@@ -81,16 +81,20 @@ function startRepl() {
   const config = loadConfig();
   const theme = getTheme(config);
 
-  // Clear screen and show banner
+  // Clear screen, push content below HUD overlay (HUD occupies ~20 rows at top-right)
   process.stdout.write('\x1b[2J\x1b[H');
+  // Reserve space for HUD — push banner below it
+  const hudLines = renderHudCard(theme);
+  const hudHeight = hudLines.length + 2; // +2 margin
+  console.log('\n'.repeat(hudHeight));
   console.log(renderBanner(theme, config.compactBanner));
   console.log('');
   console.log(colorize(`  Welcome to AAST v${VERSION} — Your Autonomous Testing Companion`, 'info', theme));
   console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
   console.log('');
 
-  // Start the real-time footer card (bottom-right, clock ticks every second)
-  const stopFooter = startFooterRefresh(theme, 1000);
+  // Start the real-time HUD overlay (top-right, clock ticks every second)
+  const stopHud = startHudRefresh(theme, 1000);
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -105,7 +109,7 @@ function startRepl() {
         'run:parallel', 'generate:assertions', 'generate:report', 'generate:fix-prompt',
         'record:trace', 'record:video', 'capture:screenshot',
         'replay:view', 'provision', 'provision:teardown', 'visual:update-baseline',
-        'about', 'modules', 'status', 'social', 'footer',
+        'about', 'modules', 'status', 'social', 'hud', 'footer',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
       return [hits.length ? hits : cmds, line];
@@ -136,7 +140,7 @@ function startRepl() {
 
         case 'quit':
         case 'exit':
-          if (stopFooter) stopFooter();
+          if (stopHud) stopHud();
           console.log(colorize('\n  Goodbye! Happy testing! 👋\n', 'info', theme));
           saveHistory(rl);
           process.exit(0);
@@ -182,12 +186,14 @@ function startRepl() {
           showSocialLinks(theme);
           break;
 
+        case 'hud':
         case 'footer':
-          // Redraw footer immediately
+          // Redraw HUD immediately
           process.stdout.write('\x1b[2J\x1b[H');
+          console.log('\n'.repeat(renderHudCard(theme).length + 2));
           console.log(renderBanner(theme, true));
           console.log('');
-          console.log(colorize('  Footer refreshed. Clock is ticking...', 'success', theme));
+          console.log(colorize('  HUD refreshed. Holographic console active...', 'success', theme));
           break;
 
         case 'test:web':
@@ -267,7 +273,7 @@ function startRepl() {
   });
 
   rl.on('close', () => {
-    if (stopFooter) stopFooter();
+    if (stopHud) stopHud();
     console.log(colorize('\n  Goodbye! 👋\n', 'info', theme));
     saveHistory(rl);
     process.exit(0);
@@ -325,7 +331,7 @@ function showHelp(theme) {
         { cmd: 'modules', desc: 'Show loaded modules' },
         { cmd: 'status', desc: 'System status' },
         { cmd: 'social', desc: 'Show social media links' },
-        { cmd: 'footer', desc: 'Refresh the live footer card' },
+        { cmd: 'hud', desc: 'Refresh the holographic HUD overlay' },
         { cmd: 'about', desc: 'About AAST' },
         { cmd: 'clear', desc: 'Clear screen' },
         { cmd: 'quit / exit', desc: 'Exit AAST' },
