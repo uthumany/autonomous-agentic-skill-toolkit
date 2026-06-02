@@ -1,194 +1,334 @@
-# Autonomous Agentic Skill Toolkit
+# UTHY AGENTIC OS
 
-> Open-source autonomous testing toolkit with flakiness detection, parallel execution, visual regression, AI test oracle, session replay, and environment provisioning.
+> An autonomous agentic operating system for your terminal — cyberpunk HUD overlay, 25 themes, chat panel with file upload, persistent memory, knowledge base, and 10 core engines.
 
-[![CI](https://github.com/uthumany/autonomous-agentic-skill-toolkit/actions/workflows/node.js.yml/badge.svg)](https://github.com/uthumany/autonomous-agentic-skill-toolkit/actions)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/uthumany/autonomous-agentic-skill-toolkit)
+[![npm](https://img.shields.io/npm/v/uthy-agentic-os.svg)](https://www.npmjs.com/package/uthy-agentic-os)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)](https://nodejs.org)
 
-## Features
-
-### Core Testing
-- **Multi-Platform Testing**: Web, mobile, desktop, CLI, and IDE testing
-- **Automated UI/UX and Backend Tests**: Comprehensive frontend + backend validation
-- **Form Filling & Auth Flows**: Complex user interaction automation
-- **Rich Evidence Capture**: Screenshots and video recording of test runs
-- **Responsive Design Testing**: Device previews across form factors
-- **Error Detection & Fix Prompts**: AI-assisted developer guidance
-- **Comprehensive Reporting**: JSON and Markdown report generation
-
-### New in v0.2.0
-
-#### Improvements
-
-1. **Smart Test Flakiness Detection & Self-Healing** - Runs tests multiple times, detects non-deterministic behavior, and auto-applies healing strategies (selector swapping, dynamic waits, retry backoff)
-
-2. **Parallel Execution Engine with Resource Pooling** - Central dispatcher with browser/device resource pools, priority queues, worker management, crash recovery, and real-time streaming
-
-3. **Intelligent Visual Regression Testing** - Baseline screenshot library with perceptual diff pipeline (pixel-level + SSIM), categorized into dynamic content, noise, and critical regressions
-
-#### Features
-
-4. **AI-Powered Test Oracle** - Exploratory crawl + heuristic inference engine that auto-generates test assertions from DOM mutations, API schemas, and interaction patterns
-
-5. **Cross-Platform Session Replay** - Full-fidelity trace capture (.aastreplay format) with browser-based viewer: timeline scrubbing, DOM overlays, network inspection, console logs, performance metrics
-
-6. **Dynamic Environment Provisioning** - Infrastructure-as-Test-Code via `environment.yaml` manifests: Docker containers, WireMock/Mountebank stubs, seed scripts, health checks, cascading teardown
+---
 
 ## Installation
 
+### From npm (recommended)
+
 ```bash
-# Clone the repository
-git clone https://github.com/uthumany/autonomous-agentic-skill-toolkit.git
-cd autonomous-agentic-skill-toolkit
-
-# Install dependencies
-npm install
-
-# Install Playwright browsers
-npx playwright install chromium
+npm install -g uthy-agentic-os
 ```
+
+### From GitHub
+
+```bash
+git clone https://github.com/uthumany/uthy-agentic-os.git
+cd uthy-agentic-os
+npm install -g .
+```
+
+### Verify
+
+```bash
+uthy --version   # 1.1.0
+uthy --help      # Show all commands
+uthy             # Launch interactive REPL
+```
+
+---
 
 ## Quick Start
 
 ```bash
+# Launch interactive REPL with cyberpunk HUD
+uthy
+
 # Run a web test
-aast test:web https://example.com
+uthy test:web https://example.com
 
-# Check for flaky tests (run 5 times, auto-heal if flaky)
-aast test:flakiness https://example.com --iterations 5 --heal
+# Store a memory
+uthy memory add "I prefer dark themes"
 
-# Run tests in parallel
-aast run:parallel ./tests --workers 4 --urls "https://example.com,https://httpbin.org"
+# Search the web
+uthy search "nodejs best practices"
 
-# Visual regression test
-aast test:visual https://example.com --update-baseline
-aast test:visual https://example.com  # Compare against baseline
+# Index your project for semantic search
+uthy kb index ./src
 
-# Auto-generate test assertions
-aast generate:assertions https://example.com --min-confidence 0.5
+# Schedule a recurring task
+uthy cron add 1h "npm test"
 
-# Record and replay a session
-aast record:trace https://example.com -d 10
-aast replay:view ./aast-traces/trace_xxx.aastreplay
-
-# Provision test environment
-aast provision ./test-dir  # Reads environment.yaml
-aast provision --dry-run ./test-dir  # Preview without provisioning
+# View goal kanban board
+uthy goal kanban
 ```
 
-## All Commands
+---
+
+## Features
+
+### 🎨 Cyberpunk HUD Overlay
+- Real-time holographic console at top-right corner
+- Seven-segment flip clock with live tick
+- Social links with floating UI markers
+- Scanline dividers and corner bracket framing
+- No rigid box borders — sci-fi cockpit aesthetic
+
+### 🖌️ 25 Terminal Themes
+`cyber` · `matrix` · `fire` · `ocean` · `neon` · `obsidian` · `neonblast` · `forest` · `amber` · `polar` · `rusted` · `cobalt` · `sepia` · `midnight` · `solarflare` · `slate` · `cherry` · `glacial` · `ember` · `lavender` · `moss` · `crimson` · `desert` · `steel` · `twilight`
+
+### 💬 Chat Panel with File Upload
+- Multi-line text input with `@filepath` syntax
+- Support for 70+ file types (code, docs, images, config, archives)
+- File preview with metadata (size, lines, type)
+- File tree walker for directory browsing
+
+### 🧠 10 Core Engines (137 Methods)
+
+| # | Engine | Methods | Description |
+|---|--------|---------|-------------|
+| 1 | **Memory** | 18 | Persistent facts, user preferences, scoring & decay |
+| 2 | **Skills** | 13 | Reusable workflow templates (5 built-in) |
+| 3 | **Goals** | 11 | Kanban board, priorities, completion tracking |
+| 4 | **Models** | 18 | Multi-provider router (OpenAI, Anthropic, Google, Ollama) |
+| 5 | **Cron** | 15 | Scheduled tasks with interval/cron/ISO scheduling |
+| 6 | **Knowledge** | 11 | TF-IDF search engine, directory indexing |
+| 7 | **Sessions** | 12 | Session recording, checkpoints, history search |
+| 8 | **Web Search** | 9 | DuckDuckGo search, URL content extraction |
+| 9 | **Watchdog** | 19 | URL/file monitoring, heartbeat, nudges |
+| 10 | **Delegation** | 11 | Parallel task execution (up to 3 workers) |
+
+---
+
+## Commands Reference
 
 ### Testing
 | Command | Description |
 |---------|-------------|
-| `aast test:web <url>` | Run web tests |
-| `aast test:mobile <url> -d "iPhone 11"` | Run mobile tests with device emulation |
-| `aast test:desktop <appName>` | Run desktop application tests |
-| `aast test:cli "<command>"` | Run CLI command tests |
-| `aast test:api <url> -m POST -d '{}'` | Run API tests |
-| `aast test:accessibility <url>` | Run accessibility audits |
-| `aast test:performance <url>` | Run Lighthouse performance tests |
-| `aast test:flakiness <url>` | Flakiness detection across iterations |
-| `aast test:visual <url>` | Visual regression against baselines |
+| `test:web <url>` | Run Playwright web test |
+| `test:mobile <url> [device]` | Mobile device emulation test |
+| `test:desktop <app>` | Desktop application test |
+| `test:cli <command>` | CLI command test |
+| `test:api <url> [method] [data]` | API endpoint test |
+| `test:accessibility <url>` | axe-core accessibility audit |
+| `test:performance <url>` | Lighthouse performance audit |
+| `test:flakiness <url> [n]` | Flakiness detection |
+| `test:visual <url>` | Visual regression test |
 
 ### Generation & Recording
 | Command | Description |
 |---------|-------------|
-| `aast generate:assertions <url>` | Auto-generate test assertions |
-| `aast generate:report <file> -f json` | Generate test reports |
-| `aast generate:fix-prompt <file>` | Generate fix prompts from errors |
-| `aast record:trace <url>` | Record session trace |
-| `aast record:video <url>` | Record video |
-| `aast capture:screenshot <url>` | Capture screenshot |
+| `generate:assertions <url>` | AI test oracle — auto-generate assertions |
+| `generate:report <file> [fmt]` | Generate JSON/Markdown report |
+| `generate:fix-prompt <file>` | Generate fix prompts from errors |
+| `capture:screenshot <url>` | Capture screenshot |
+| `record:video <url>` | Record video |
+| `record:trace <url> [sec]` | Record session trace (.uthyreplay) |
+| `run:parallel <urls>` | Parallel test execution |
+| `provision <dir>` | Provision test environment |
 
-### Execution & Provisioning
+### 🧠 Memory
 | Command | Description |
 |---------|-------------|
-| `aast run:parallel <dir>` | Run test suite in parallel |
-| `aast provision <dir>` | Provision test environment |
-| `aast provision --dry-run <dir>` | Preview provisioning |
-| `aast provision:teardown` | Tear down environments |
-| `aast replay:view <file>` | View session replay |
+| `memory add <fact>` | Store a persistent memory |
+| `memory list` | List all memories by score |
+| `memory search <query>` | Search memories by keyword |
+| `memory stats` | Memory statistics |
+| `memory remove <id>` | Remove a memory |
 
-## Environment Manifest
+### ⚡ Skills
+| Command | Description |
+|---------|-------------|
+| `skill list` | List available workflow skills |
+| `skill load <name>` | Load a skill into context |
+| `skill search <query>` | Search skills by keyword |
+| `skill stats` | Skill statistics |
 
-Create an `environment.yaml` in your test directory:
+### 🎯 Goals
+| Command | Description |
+|---------|-------------|
+| `goal add <text>` | Add a new goal |
+| `goal list` | List all goals |
+| `goal done <id>` | Mark goal as completed |
+| `goal kanban` | Visual kanban board |
+| `goal review` | Goal progress summary |
 
-```yaml
-version: "1.0"
-network: "aast-test-net"
+### 🤖 Models
+| Command | Description |
+|---------|-------------|
+| `model list` | List available AI models |
+| `model active` | Show active model |
+| `model set <id>` | Set active model |
+| `model route <type>` | Find best model for task type |
+| `model usage` | Show token usage & cost |
+| `model providers` | List configured providers |
 
-services:
-  - name: postgres
-    image: postgres:15
-    ports: ["5432:5432"]
-    env:
-      POSTGRES_DB: testdb
-      POSTGRES_PASSWORD: secret
-    healthcheck: "http://localhost:5432/health"
+### ⏰ Cron
+| Command | Description |
+|---------|-------------|
+| `cron add <schedule> <command>` | Schedule a recurring task |
+| `cron list` | List all cron jobs |
+| `cron run <id>` | Manually trigger a job |
+| `cron pause <id>` | Pause a job |
+| `cron resume <id>` | Resume a job |
+| `cron remove <id>` | Remove a job |
+| `cron stats` | Cron statistics |
 
-  - name: redis
-    image: redis:7-alpine
-    ports: ["6379:6379"]
+### 📚 Knowledge Base
+| Command | Description |
+|---------|-------------|
+| `kb index <dir>` | Index a directory for search |
+| `kb search <query>` | TF-IDF search across files |
+| `kb stats` | Index statistics |
+| `kb forget <path>` | Remove a file from index |
+| `kb rebuild <dir>` | Rebuild the knowledge index |
 
-stubs:
-  - name: weather-api
-    type: wiremock
-    mappings: ./stubs/weather
+### 📝 Sessions
+| Command | Description |
+|---------|-------------|
+| `session list` | List recent sessions |
+| `session search <query>` | Search session history |
+| `session checkpoint <label>` | Save a checkpoint |
+| `session stats` | Session statistics |
 
-seed:
-  - name: init-db
-    type: sql
-    file: ./seeds/init.sql
-    target: postgres
-```
+### 🌐 Web
+| Command | Description |
+|---------|-------------|
+| `search <query>` | Search the web (DuckDuckGo) |
+| `extract <url>` | Extract text from a URL |
+
+### 👁️ Watchdog
+| Command | Description |
+|---------|-------------|
+| `watch add <url/file>` | Start monitoring a target |
+| `watch list` | List active watches |
+| `watch check` | Check all watches now |
+| `watch heartbeat` | Record activity heartbeat |
+| `watch nudge <message>` | Send a nudge notification |
+| `watch stats` | Watchdog statistics |
+
+### 🔀 Delegation
+| Command | Description |
+|---------|-------------|
+| `delegate <task>` | Delegate a task to a worker |
+| `delegate parallel <t1> \| <t2>` | Run tasks in parallel |
+| `delegate list` | List delegations |
+| `delegate stats` | Delegation statistics |
+
+### 💬 Chat & Files
+| Command | Description |
+|---------|-------------|
+| `chat` | Show chat input panel |
+| `attach <file>` | Attach a file for processing |
+| `files [dir]` | Show file tree of directory |
+| `upload` | Show supported file types |
+
+### Shell
+| Command | Description |
+|---------|-------------|
+| `help` | Show all commands |
+| `about` | About UTHY AGENTIC OS |
+| `themes` | List available themes |
+| `theme <name>` | Change active theme |
+| `social` | Show social media links |
+| `hud` | Refresh the HUD overlay |
+| `clear` | Clear screen |
+| `quit / exit` | Exit UTHY |
+
+---
 
 ## Project Structure
 
 ```
-autonomous-agentic-skill-toolkit/
+uthy-agentic-os/
 ├── src/
-│   ├── index.js                  # CLI entry point (25+ commands)
+│   ├── index.js              # CLI entry point + REPL (50+ commands)
+│   ├── ui.js                 # Banner, 25 themes, HUD overlay, UI helpers
 │   └── modules/
-│       ├── flakiness.js          # Flakiness detection & self-healing
-│       ├── parallel.js           # Parallel execution engine
+│       ├── memory.js         # 🧠 Persistent memory engine
+│       ├── skills.js         # ⚡ Skill system with built-in workflows
+│       ├── goals.js          # 🎯 Goal tracker + kanban board
+│       ├── models.js         # 🤖 Multi-model router
+│       ├── cron.js           # ⏰ Scheduled task engine
+│       ├── knowledge.js      # 📚 TF-IDF knowledge base
+│       ├── sessions.js       # 📝 Session recording & search
+│       ├── websearch.js      # 🌐 Web search & URL extraction
+│       ├── watchdog.js       # 👁️ Monitoring & heartbeat
+│       ├── delegation.js     # 🔀 Parallel task delegation
+│       ├── chat.js           # 💬 Chat panel & file upload
+│       ├── flakiness.js      # Flakiness detection & self-healing
+│       ├── parallel.js       # Parallel execution engine
 │       ├── visual_regression.js  # Visual regression testing
-│       ├── oracle.js             # AI test oracle & assertion generator
-│       ├── session_replay.js     # Session replay & .aastreplay format
-│       ├── provisioner.js        # Environment provisioning
-│       ├── web.js                # Web testing
-│       ├── mobile.js             # Mobile testing
-│       ├── desktop.js            # Desktop testing
-│       ├── cli.js                # CLI testing
-│       ├── api.js                # API testing
-│       ├── accessibility.js      # Accessibility testing
-│       ├── performance.js        # Performance testing
-│       ├── evidence.js           # Screenshot & video capture
-│       ├── report.js             # Report generation
-│       └── fix_prompt.js         # Fix prompt generation
-├── tests/                        # 64 unit tests
-│   ├── flakiness.test.js
-│   ├── parallel.test.js
-│   ├── visual_regression.test.js
-│   ├── oracle.test.js
-│   ├── session_replay.test.js
-│   └── provisioner.test.js
-├── examples/                     # Example test scripts
-├── docs/                         # Documentation
+│       ├── oracle.js         # AI test oracle
+│       ├── session_replay.js # Session replay (.uthyreplay)
+│       ├── provisioner.js    # Environment provisioning
+│       ├── web.js            # Web testing
+│       ├── mobile.js         # Mobile testing
+│       ├── desktop.js        # Desktop testing
+│       ├── cli.js            # CLI testing
+│       ├── api.js            # API testing
+│       ├── accessibility.js  # Accessibility testing
+│       ├── performance.js    # Performance testing
+│       ├── evidence.js       # Screenshot & video capture
+│       ├── report.js         # Report generation
+│       └── fix_prompt.js     # Fix prompt generation
+├── tests/                    # Unit tests
+├── examples/                 # Example scripts
+├── docs/                     # Documentation
 └── package.json
 ```
 
-## Running Tests
+---
 
-```bash
-# Run all tests (64 tests, ~4 seconds)
-node --test tests/*.test.js
+## Configuration
 
-# Run a specific module's tests
-node --test tests/parallel.test.js
+UTHY stores all data in `~/.uthy/`:
+
 ```
+~/.uthy/
+├── config.json           # User preferences (theme, history size)
+├── history               # REPL command history
+├── memory/
+│   └── memory.json       # Persistent memories
+├── skills/               # Skill templates (.md files)
+├── goals/
+│   └── goals.json        # Goal tracker data
+├── models/
+│   └── models.json       # AI model configurations
+├── cron/
+│   ├── jobs.json         # Scheduled jobs
+│   └── logs/             # Per-job execution logs
+├── knowledge/
+│   └── index.json        # TF-IDF knowledge index
+├── sessions/             # Session recordings
+├── webcache/             # Web search result cache
+├── watchdog/
+│   ├── watches.json      # Active monitors
+│   ├── heartbeat.json    # Activity heartbeat
+│   └── nudges.json       # Nudge notifications
+└── delegations/
+    └── history.json      # Delegation history
+```
+
+---
+
+## Built-in Skills
+
+| Skill | Category | Description |
+|-------|----------|-------------|
+| `web-audit` | analysis | Full web audit: accessibility, performance, visual regression |
+| `deploy-check` | deployment | Pre-deployment checklist: tests, build, lint, env vars |
+| `code-review` | analysis | Review code changes: diff analysis, test coverage, style |
+| `api-test` | testing | API endpoint testing: schema, auth, performance, errors |
+| `monitor` | automation | Set up monitoring: uptime, errors, performance baselines |
+
+---
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## Author
+
+**uthuman & co**
+- Website: [uthuman.com](https://uthuman.com)
+- GitHub: [@uthumany](https://github.com/uthumany)
+- Email: dev@uthuman.com
