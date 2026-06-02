@@ -51,11 +51,23 @@ const {
   getFileTypeInfo, formatFileSize,
 } = require('./modules/chat');
 
+// ── Core Feature Engines ────────────────────────────────────
+const { MemoryEngine } = require('./modules/memory');
+const { SkillEngine } = require('./modules/skills');
+const { GoalEngine } = require('./modules/goals');
+const { ModelRouter } = require('./modules/models');
+const { CronEngine } = require('./modules/cron');
+const { KnowledgeEngine } = require('./modules/knowledge');
+const { SessionEngine } = require('./modules/sessions');
+const { WebSearchEngine } = require('./modules/websearch');
+const { WatchdogEngine } = require('./modules/watchdog');
+const { DelegationEngine } = require('./modules/delegation');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const CONFIG_DIR = path.join(os.homedir(), '.uthy');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const HISTORY_FILE = path.join(CONFIG_DIR, 'history');
@@ -96,9 +108,53 @@ function startRepl() {
   console.log('\n'.repeat(hudHeight));
   console.log(renderBanner(theme, config.compactBanner));
   console.log('');
-  console.log(colorize(`  Welcome to UTHY AGENTIC OS v${VERSION} — Your Autonomous Testing Companion`, 'info', theme));
+  console.log(colorize(`  Welcome to UTHY AGENTIC OS v${VERSION} — Your Autonomous Agentic Operating System`, 'info', theme));
   console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
   console.log('');
+
+  // ── Initialize all engines (sync wrappers) ─────────────
+  const memory = new MemoryEngine();
+  const skills = new SkillEngine();
+  const goals = new GoalEngine();
+  const models = new ModelRouter();
+  const cron = new CronEngine();
+  const knowledge = new KnowledgeEngine();
+  const sessions = new SessionEngine();
+  const websearch = new WebSearchEngine();
+  const watchdog = new WatchdogEngine();
+  const delegation = new DelegationEngine();
+
+  let currentSession = null;
+  let enginesReady = false;
+
+  // Initialize engines synchronously via try-catch wrappers
+  const initEngines = async () => {
+    try {
+      await memory.init();
+      await skills.init();
+      await goals.init();
+      await models.init();
+      await cron.init();
+      await knowledge.init();
+      await sessions.init();
+      await websearch.init();
+      await watchdog.init();
+      await delegation.init();
+      currentSession = await sessions.start('UTHY Session ' + new Date().toISOString().slice(0, 19));
+      watchdog.heartbeat('session-start');
+      enginesReady = true;
+      console.log(colorize('  ✓ All 10 engines initialized', 'success', theme));
+      console.log('');
+      rl.prompt();
+    } catch (e) {
+      enginesReady = true; // still set to true so commands can be attempted
+      console.log(colorize(`  ⚠ Engine init warning: ${e.message}`, 'warn', theme));
+      console.log('');
+      rl.prompt();
+    }
+  };
+
+  initEngines();
 
   // Start the real-time HUD overlay (top-right, clock ticks every second)
   const stopHud = startHudRefresh(theme, 1000);
@@ -118,6 +174,9 @@ function startRepl() {
         'replay:view', 'provision', 'provision:teardown', 'visual:update-baseline',
         'about', 'modules', 'status', 'social', 'hud', 'footer',
         'chat', 'attach', 'files', 'tree', 'upload',
+        'memory', 'skill', 'skills', 'goal', 'goals', 'model', 'models',
+        'cron', 'kb', 'knowledge', 'session', 'sessions',
+        'search', 'extract', 'watch', 'delegate',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
       return [hits.length ? hits : cmds, line];
@@ -132,7 +191,7 @@ function startRepl() {
     }
   } catch (_) {}
 
-  rl.prompt();
+  // Prompt will be shown after engines init completes (see initEngines)
 
   rl.on('line', async (line) => {
     const input = line.trim();
@@ -149,7 +208,14 @@ function startRepl() {
         case 'quit':
         case 'exit':
           if (stopHud) stopHud();
-          console.log(colorize('\n  Goodbye! Happy testing! 👋\n', 'info', theme));
+          // End session and stop engines
+          try {
+            if (currentSession) await sessions.end(currentSession.id);
+            if (cron.stop) cron.stop();
+            if (watchdog.stopMonitoring) watchdog.stopMonitoring();
+            watchdog.heartbeat('session-end');
+          } catch (_) {}
+          console.log(colorize('\n  Goodbye from UTHY AGENTIC OS! 👋\n', 'info', theme));
           saveHistory(rl);
           process.exit(0);
 
@@ -265,6 +331,312 @@ function startRepl() {
           ], theme, 'FILE UPLOAD'));
           break;
 
+        // ════════════════════════════════════════════════════
+        //  MEMORY ENGINE COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'memory':
+          if (args[0] === 'add' && args.length > 1) {
+            const content = args.slice(1).join(' ');
+            const entry = await memory.add(content, 'general', []);
+            console.log(colorize(`  ✓ Memory #${entry.id} saved`, 'success', theme));
+          } else if (args[0] === 'list') {
+            const entries = await memory.list({ limit: 20 });
+            if (!entries.length) console.log(colorize('  No memories yet.', 'muted', theme));
+            for (const e of entries) {
+              console.log(`  ${colorize('#' + e.id, 'secondary', theme)} [${e.category}] ${e.content.slice(0, 80)}`);
+            }
+          } else if (args[0] === 'search' && args[1]) {
+            const results = await memory.search(args.slice(1).join(' '), 10);
+            for (const r of results) console.log(`  ${colorize('#' + r.id, 'secondary', theme)} ${r.content.slice(0, 80)}`);
+          } else if (args[0] === 'stats') {
+            const s = await memory.stats();
+            console.log(colorize(`  Total: ${s.total} | Avg Score: ${s.avgScore?.toFixed(1)}`, 'info', theme));
+          } else if (args[0] === 'remove' && args[1]) {
+            await memory.remove(parseInt(args[1]));
+            console.log(colorize('  ✓ Removed', 'success', theme));
+          } else {
+            console.log(colorize('  Usage: memory <add|list|search|stats|remove> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  SKILL ENGINE COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'skill':
+        case 'skills':
+          if (args[0] === 'list') {
+            const list = await skills.list();
+            for (const s of list) {
+              console.log(`  ${colorize('▸', 'secondary', theme)} ${colorize(s.name, 'primary', theme)} [${s.category}] ${s.description?.slice(0, 50) || ''}`);
+            }
+          } else if (args[0] === 'load' && args[1]) {
+            const content = await skills.load(args[1]);
+            if (content) console.log(content);
+            else console.log(colorize('  Skill not found', 'error', theme));
+          } else if (args[0] === 'search' && args[1]) {
+            const results = await skills.search(args.slice(1).join(' '));
+            for (const s of results) console.log(`  ${colorize(s.name, 'primary', theme)} — ${s.description}`);
+          } else if (args[0] === 'stats') {
+            const s = await skills.stats();
+            console.log(colorize(`  Total: ${s.total} | Categories: ${Object.keys(s.byCategory).join(', ')}`, 'info', theme));
+          } else {
+            console.log(colorize('  Usage: skill <list|load|search|stats> [name]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  GOAL TRACKER COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'goal':
+        case 'goals':
+          if (args[0] === 'add' && args.length > 1) {
+            const text = args.slice(1).join(' ');
+            const g = await goals.add(text, 'Active', 'medium', []);
+            console.log(colorize(`  ✓ Goal #${g.id} added: ${text}`, 'success', theme));
+          } else if (args[0] === 'list') {
+            const list = await goals.list({});
+            if (!list.length) console.log(colorize('  No goals yet.', 'muted', theme));
+            for (const g of list) {
+              const status = g.status === 'completed' ? '✓' : g.status === 'in_progress' ? '▸' : '○';
+              console.log(`  ${colorize(status, g.status === 'completed' ? 'success' : 'primary', theme)} #${g.id} [${g.priority}] ${g.text}`);
+            }
+          } else if (args[0] === 'done' && args[1]) {
+            await goals.complete(parseInt(args[1]));
+            console.log(colorize('  ✓ Goal completed!', 'success', theme));
+          } else if (args[0] === 'kanban') {
+            const board = await goals.kanban(theme);
+            for (const line of board) console.log(line);
+          } else if (args[0] === 'review') {
+            const r = await goals.review();
+            console.log(colorize(`  Active: ${r.active} | Completed: ${r.completed} | Rate: ${(r.completionRate * 100).toFixed(0)}%`, 'info', theme));
+          } else if (args[0] === 'remove' && args[1]) {
+            await goals.remove(parseInt(args[1]));
+            console.log(colorize('  ✓ Removed', 'success', theme));
+          } else {
+            console.log(colorize('  Usage: goal <add|list|done|kanban|review|remove> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  MODEL ROUTER COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'model':
+        case 'models':
+          if (args[0] === 'list') {
+            const mlist = await models.listModels();
+            for (const m of mlist) {
+              console.log(`  ${colorize('▸', 'secondary', theme)} ${colorize(m.id, 'primary', theme)} (${m.provider}) max:${m.maxTokens}`);
+            }
+          } else if (args[0] === 'active') {
+            const active = await models.getActive();
+            console.log(colorize(`  Active: ${active?.id || 'none'}`, 'info', theme));
+          } else if (args[0] === 'set' && args[1]) {
+            await models.setActive(args[1]);
+            console.log(colorize(`  ✓ Active model: ${args[1]}`, 'success', theme));
+          } else if (args[0] === 'route' && args[1]) {
+            const m = await models.route(args[1]);
+            console.log(colorize(`  Best model for "${args[1]}": ${m?.id || 'none'}`, 'info', theme));
+          } else if (args[0] === 'usage') {
+            const u = await models.getUsage();
+            console.log(colorize(`  Tokens: ${u.totalTokens} | Cost: $${u.totalCost?.toFixed(4) || '0.00'}`, 'info', theme));
+          } else if (args[0] === 'providers') {
+            const p = await models.listProviders();
+            for (const pr of p) console.log(`  ${colorize(pr.id, 'primary', theme)} — ${pr.name} (${pr.models?.length || 0} models)`);
+          } else {
+            console.log(colorize('  Usage: model <list|active|set|route|usage|providers> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  CRON ENGINE COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'cron':
+          if (args[0] === 'add' && args.length >= 3) {
+            const schedule = args[1];
+            const command = args.slice(2).join(' ');
+            const job = await cron.add('cron-' + Date.now(), schedule, command);
+            console.log(colorize(`  ✓ Job #${job.id} scheduled: ${schedule}`, 'success', theme));
+          } else if (args[0] === 'list') {
+            const jobs = await cron.list({});
+            if (!jobs.length) console.log(colorize('  No cron jobs.', 'muted', theme));
+            for (const j of jobs) {
+              const en = j.enabled ? colorize('●', 'success', theme) : colorize('○', 'muted', theme);
+              console.log(`  ${en} #${j.id} ${j.schedule} → ${j.command?.slice(0, 50) || j.name}`);
+            }
+          } else if (args[0] === 'run' && args[1]) {
+            console.log(colorize('  Running...', 'muted', theme));
+            const result = await cron.run(parseInt(args[1]) || args[1]);
+            console.log(result?.output || colorize('  Done', 'success', theme));
+          } else if (args[0] === 'pause' && args[1]) {
+            await cron.pause(parseInt(args[1]) || args[1]);
+            console.log(colorize('  ✓ Paused', 'success', theme));
+          } else if (args[0] === 'resume' && args[1]) {
+            await cron.resume(parseInt(args[1]) || args[1]);
+            console.log(colorize('  ✓ Resumed', 'success', theme));
+          } else if (args[0] === 'remove' && args[1]) {
+            await cron.remove(parseInt(args[1]) || args[1]);
+            console.log(colorize('  ✓ Removed', 'success', theme));
+          } else if (args[0] === 'stats') {
+            const s = await cron.stats();
+            console.log(colorize(`  Jobs: ${s.total} | Enabled: ${s.enabled} | Runs: ${s.totalRuns}`, 'info', theme));
+          } else {
+            console.log(colorize('  Usage: cron <add|list|run|pause|resume|remove|stats> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  KNOWLEDGE BASE COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'kb':
+        case 'knowledge':
+          if (args[0] === 'index' && args[1]) {
+            console.log(colorize('  Indexing...', 'muted', theme));
+            const result = await knowledge.index(args[1]);
+            console.log(colorize(`  ✓ Indexed: ${result.indexed} files, ${result.skipped} skipped`, 'success', theme));
+          } else if (args[0] === 'search' && args[1]) {
+            const results = await knowledge.search(args.slice(1).join(' '), 5);
+            if (!results.length) console.log(colorize('  No results.', 'muted', theme));
+            for (const r of results) {
+              console.log(`  ${colorize(r.path, 'primary', theme)} ${colorize('(score: ' + r.score.toFixed(3) + ')', 'muted', theme)}`);
+              console.log(`    ${r.snippet?.slice(0, 120)}`);
+            }
+          } else if (args[0] === 'stats') {
+            const s = await knowledge.stats();
+            console.log(colorize(`  Files: ${s.totalFiles} | Chunks: ${s.totalChunks} | Size: ${formatFileSize(s.totalChars)}`, 'info', theme));
+          } else if (args[0] === 'forget' && args[1]) {
+            await knowledge.forget(args[1]);
+            console.log(colorize('  ✓ Forgotten', 'success', theme));
+          } else if (args[0] === 'rebuild' && args[1]) {
+            console.log(colorize('  Rebuilding...', 'muted', theme));
+            await knowledge.rebuild(args[1]);
+            console.log(colorize('  ✓ Rebuilt', 'success', theme));
+          } else {
+            console.log(colorize('  Usage: kb <index|search|stats|forget|rebuild> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  SESSION ENGINE COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'session':
+        case 'sessions':
+          if (args[0] === 'list') {
+            const slist = await sessions.list({ limit: 10 });
+            for (const s of slist) {
+              const msgs = s.messages?.length || 0;
+              console.log(`  ${colorize(s.id?.slice(0, 8), 'secondary', theme)} ${s.title} ${colorize(`(${msgs} msgs)`, 'muted', theme)}`);
+            }
+          } else if (args[0] === 'search' && args[1]) {
+            const results = await sessions.search(args.slice(1).join(' '), 5);
+            for (const r of results) {
+              console.log(`  ${colorize(r.id?.slice(0, 8), 'secondary', theme)} ${r.title}`);
+              if (r.snippet) console.log(`    ${r.snippet.slice(0, 100)}`);
+            }
+          } else if (args[0] === 'checkpoint' && args[1]) {
+            if (currentSession) {
+              await sessions.checkpoint(currentSession.id, args.slice(1).join(' '));
+              console.log(colorize('  ✓ Checkpoint saved', 'success', theme));
+            }
+          } else if (args[0] === 'stats') {
+            const s = await sessions.stats();
+            console.log(colorize(`  Sessions: ${s.totalSessions} | Messages: ${s.totalMessages}`, 'info', theme));
+          } else {
+            console.log(colorize('  Usage: session <list|search|checkpoint|stats> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  WEB SEARCH COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'search':
+          if (!args[0]) { console.log(colorize('  Usage: search <query>', 'warn', theme)); break; }
+          console.log(colorize('  Searching...', 'muted', theme));
+          try {
+            const results = await websearch.search(args.join(' '), 5);
+            if (!results.length) console.log(colorize('  No results found.', 'muted', theme));
+            for (const r of results) {
+              console.log(`  ${colorize(r.title, 'primary', theme)}`);
+              console.log(`    ${colorize(r.url, 'info', theme)}`);
+              console.log(`    ${r.snippet?.slice(0, 100)}`);
+              console.log('');
+            }
+          } catch (e) {
+            console.log(colorize(`  Search error: ${e.message}`, 'error', theme));
+          }
+          break;
+
+        case 'extract':
+          if (!args[0]) { console.log(colorize('  Usage: extract <url>', 'warn', theme)); break; }
+          console.log(colorize('  Fetching...', 'muted', theme));
+          try {
+            const page = await websearch.extract(args[0]);
+            console.log(colorize(`  Title: ${page.title}`, 'primary', theme));
+            console.log(colorize(`  URL: ${page.url}`, 'muted', theme));
+            console.log('');
+            console.log(page.content?.slice(0, 2000));
+          } catch (e) {
+            console.log(colorize(`  Extract error: ${e.message}`, 'error', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  WATCHDOG COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'watch':
+          if (args[0] === 'add' && args[1]) {
+            const target = args[1];
+            const type = target.startsWith('http') ? 'url' : 'file';
+            const w = await watchdog.addWatch(target, type, '5m');
+            console.log(colorize(`  ✓ Watching: ${target} (${type})`, 'success', theme));
+          } else if (args[0] === 'list') {
+            const watches = await watchdog.listWatches();
+            if (!watches.length) console.log(colorize('  No watches.', 'muted', theme));
+            for (const w of watches) {
+              console.log(`  ${colorize(w.id?.toString().slice(0, 6), 'secondary', theme)} [${w.type}] ${w.target} ${colorize(w.status || 'pending', 'muted', theme)}`);
+            }
+          } else if (args[0] === 'check') {
+            const results = await watchdog.checkAll();
+            for (const r of results) console.log(`  ${r.target}: ${r.status}`);
+          } else if (args[0] === 'heartbeat') {
+            watchdog.heartbeat(args.slice(1).join(' ') || 'manual');
+            console.log(colorize('  ✓ Heartbeat recorded', 'success', theme));
+          } else if (args[0] === 'nudge' && args[1]) {
+            watchdog.nudge(args.slice(1).join(' '));
+            console.log(colorize('  ✓ Nudge sent', 'success', theme));
+          } else if (args[0] === 'stats') {
+            const s = await watchdog.stats();
+            console.log(colorize(`  Watches: ${s.totalWatches} | Alerts: ${s.activeAlerts}`, 'info', theme));
+          } else {
+            console.log(colorize('  Usage: watch <add|list|check|heartbeat|nudge|stats> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  DELEGATION COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'delegate':
+          if (args[0] && args[0] !== 'parallel') {
+            console.log(colorize('  Delegating...', 'muted', theme));
+            const result = await delegation.delegate(args.join(' '));
+            console.log(colorize(`  ✓ Task #${result.id} delegated`, 'success', theme));
+          } else if (args[0] === 'parallel' && args.length > 1) {
+            const tasks = args.slice(1).join(' ').split('|').map(t => t.trim());
+            console.log(colorize(`  Delegating ${tasks.length} tasks in parallel...`, 'muted', theme));
+            const results = await delegation.delegateParallel(tasks);
+            for (const r of results) console.log(`  ${r.id}: ${r.status}`);
+          } else if (args[0] === 'list') {
+            const dlist = await delegation.list({});
+            for (const d of dlist) {
+              console.log(`  ${colorize(d.id?.toString().slice(0, 6), 'secondary', theme)} [${d.status}] ${d.task?.slice(0, 60)}`);
+            }
+          } else if (args[0] === 'stats') {
+            const s = await delegation.stats();
+            console.log(colorize(`  Total: ${s.total} | Done: ${s.completed} | Running: ${s.running}`, 'info', theme));
+          } else {
+            console.log(colorize('  Usage: delegate <task> | delegate parallel <t1> | <t2> | delegate list | delegate stats', 'warn', theme));
+          }
+          break;
+
         case 'hud':
         case 'footer':
           // Redraw HUD immediately
@@ -351,9 +723,14 @@ function startRepl() {
     rl.prompt();
   });
 
-  rl.on('close', () => {
+  rl.on('close', async () => {
     if (stopHud) stopHud();
-    console.log(colorize('\n  Goodbye! 👋\n', 'info', theme));
+    try {
+      if (currentSession) await sessions.end(currentSession.id);
+      if (cron.stop) cron.stop();
+      if (watchdog.stopMonitoring) watchdog.stopMonitoring();
+    } catch (_) {}
+    console.log(colorize('\n  Goodbye from UTHY AGENTIC OS! 👋\n', 'info', theme));
     saveHistory(rl);
     process.exit(0);
   });
@@ -425,11 +802,97 @@ function showHelp(theme) {
         { cmd: 'upload', desc: 'Show supported file types' },
       ],
     },
+    {
+      title: '🧠 Memory',
+      items: [
+        { cmd: 'memory add <fact>', desc: 'Store a persistent memory' },
+        { cmd: 'memory list', desc: 'List all memories by score' },
+        { cmd: 'memory search <q>', desc: 'Search memories by keyword' },
+        { cmd: 'memory stats', desc: 'Memory statistics' },
+      ],
+    },
+    {
+      title: '⚡ Skills',
+      items: [
+        { cmd: 'skill list', desc: 'List available workflow skills' },
+        { cmd: 'skill load <name>', desc: 'Load a skill into context' },
+        { cmd: 'skill search <q>', desc: 'Search skills by keyword' },
+      ],
+    },
+    {
+      title: '🎯 Goals',
+      items: [
+        { cmd: 'goal add <text>', desc: 'Add a new goal' },
+        { cmd: 'goal list', desc: 'List all goals' },
+        { cmd: 'goal done <id>', desc: 'Mark goal as completed' },
+        { cmd: 'goal kanban', desc: 'Visual kanban board' },
+        { cmd: 'goal review', desc: 'Goal progress summary' },
+      ],
+    },
+    {
+      title: '🤖 Models',
+      items: [
+        { cmd: 'model list', desc: 'List available AI models' },
+        { cmd: 'model set <id>', desc: 'Set active model' },
+        { cmd: 'model route <type>', desc: 'Find best model for task' },
+        { cmd: 'model usage', desc: 'Show token usage & cost' },
+      ],
+    },
+    {
+      title: '⏰ Cron',
+      items: [
+        { cmd: 'cron add <sched> <cmd>', desc: 'Schedule a recurring task' },
+        { cmd: 'cron list', desc: 'List all cron jobs' },
+        { cmd: 'cron run <id>', desc: 'Manually trigger a job' },
+        { cmd: 'cron pause/resume <id>', desc: 'Pause or resume a job' },
+      ],
+    },
+    {
+      title: '📚 Knowledge Base',
+      items: [
+        { cmd: 'kb index <dir>', desc: 'Index a directory for search' },
+        { cmd: 'kb search <query>', desc: 'TF-IDF search across files' },
+        { cmd: 'kb stats', desc: 'Index statistics' },
+        { cmd: 'kb rebuild <dir>', desc: 'Rebuild the knowledge index' },
+      ],
+    },
+    {
+      title: '📝 Sessions',
+      items: [
+        { cmd: 'session list', desc: 'List recent sessions' },
+        { cmd: 'session search <q>', desc: 'Search session history' },
+        { cmd: 'session checkpoint <label>', desc: 'Save a checkpoint' },
+      ],
+    },
+    {
+      title: '🌐 Web',
+      items: [
+        { cmd: 'search <query>', desc: 'Search the web (DuckDuckGo)' },
+        { cmd: 'extract <url>', desc: 'Extract text from a URL' },
+      ],
+    },
+    {
+      title: '👁️ Watchdog',
+      items: [
+        { cmd: 'watch add <url/file>', desc: 'Start monitoring a target' },
+        { cmd: 'watch list', desc: 'List active watches' },
+        { cmd: 'watch check', desc: 'Check all watches now' },
+        { cmd: 'watch heartbeat', desc: 'Record activity heartbeat' },
+      ],
+    },
+    {
+      title: '🔀 Delegation',
+      items: [
+        { cmd: 'delegate <task>', desc: 'Delegate a task to a worker' },
+        { cmd: 'delegate parallel <t1> | <t2>', desc: 'Run tasks in parallel' },
+        { cmd: 'delegate list', desc: 'List delegations' },
+      ],
+    },
   ];
 
   console.log('');
   for (const sec of sections) {
-    console.log(colorize(`  ── ${sec.title} ${'─'.repeat(50 - sec.title.length)}`, 'muted', theme));
+    console.log(colorize(`  ── ${sec.title} ${'─'.repeat(Math.max(1, 60 - sec.title.length))}`, 'muted', theme));
     for (const item of sec.items) {
       const cmd = colorize(item.cmd.padEnd(32), 'secondary', theme);
       console.log(`    ${cmd}${colorize(item.desc, 'muted', theme)}`);
