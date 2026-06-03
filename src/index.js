@@ -78,6 +78,10 @@ const { LayoutManager } = require('./modules/tui');
 // ── Update Engine (self-update with animated progress) ────
 const { UpdateEngine, render3DFrame, gradientBar, gradientText, getSpinnerFrame } = require('./modules/update');
 
+// ── Authentication & Boot Animation ───────────────────────
+const { AuthEngine } = require('./modules/auth');
+const { bootAndLogin, welcomeAnimation } = require('./modules/bootAnimation');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
@@ -119,8 +123,36 @@ function startRepl() {
   const layout = new LayoutManager();
   const isTTY = layout.isTTY;
 
-  // Clear screen (only in TTY mode)
-  if (isTTY) process.stdout.write('\x1b[2J\x1b[H');
+  // ── Authentication ──────────────────────────────────────
+  const auth = new AuthEngine();
+  let loggedInUser = config.user?.name || 'guest';
+
+  // Boot animation + login (TTY only)
+  const doBoot = async () => {
+    if (!isTTY) {
+      auth.init();
+      startReplInner(config, theme, layout, isTTY, auth, loggedInUser);
+      return;
+    }
+
+    try {
+      const { bootAndLogin } = require('./modules/bootAnimation');
+      const result = await bootAndLogin(auth, isTTY);
+      loggedInUser = result.username;
+      config.user = config.user || {};
+      config.user.name = loggedInUser;
+    } catch (e) {
+      // Auth skipped or failed
+    }
+
+    process.stdout.write('\x1b[2J\x1b[H');
+    startReplInner(config, theme, layout, isTTY, auth, loggedInUser);
+  };
+
+  doBoot();
+}
+
+function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
 
   // Draw initial frame
   if (isTTY) {
@@ -140,7 +172,7 @@ function startRepl() {
   }
 
   // Welcome text
-  console.log(colorize(`  Welcome to UTHY AGENTIC OS v${VERSION} — Your Autonomous Agentic Operating System`, 'info', theme));
+  console.log(colorize(`  Welcome ${loggedInUser} to UTHY AGENTIC OS v${VERSION}`, 'info', theme));
   if (isTTY) {
     console.log(colorize(`  Layout: ${layout.mode} (${layout.cols}×${layout.rows}) | Type "/layout" to change`, 'muted', theme));
   }
@@ -454,6 +486,7 @@ function startRepl() {
         'memory', 'skill', 'skills', 'goal', 'goals', 'model', 'models',
         'cron', 'kb', 'knowledge', 'session', 'sessions',
         'search', 'extract', 'watch', 'delegate', 'ask',
+        'whoami', 'login', 'logout', 'register', 'passwd', 'users',
         'setup', 'config', 'gateway', 'mcp', 'font', 'update',
         '/setup', '/config', '/gateway', '/mcp', '/theme', '/themes',
         '/font', '/help', '/commands', '/status', '/engines', '/clear', '/quit',
@@ -1047,6 +1080,109 @@ function startRepl() {
           }
           console.log('');
           console.log(colorize('  Setup complete! Type "config list" to see configuration.', 'info', theme));
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  AUTHENTICATION COMMANDS
+        // ════════════════════════════════════════════════════
+        case 'whoami':
+          console.log(colorize(`  Logged in as: ${loggedInUser}`, 'info', theme));
+          break;
+
+        case 'login':
+          {
+            const username = args[0];
+            const password = args[1];
+            if (!username || !password) {
+              console.log(colorize('  Usage: login <username> <password>', 'warn', theme));
+              break;
+            }
+            const result = auth.authenticate(username, password);
+            if (result.success) {
+              loggedInUser = result.username;
+              console.log(colorize(`  ✓ Logged in as ${result.username}`, 'success', theme));
+            } else if (result.error === 'user_not_found') {
+              console.log(colorize(`  ✗ User "${username}" not found. Use "register" to create.`, 'error', theme));
+            } else if (result.error === 'invalid_password') {
+              console.log(colorize('  ✗ Invalid password', 'error', theme));
+            } else {
+              console.log(colorize(`  ✗ ${result.error}`, 'error', theme));
+            }
+          }
+          break;
+
+        case 'logout':
+          auth.logout();
+          loggedInUser = 'guest';
+          console.log(colorize('  ✓ Logged out', 'success', theme));
+          break;
+
+        case 'register':
+          {
+            const username = args[0];
+            const password = args[1];
+            if (!username || !password) {
+              console.log(colorize('  Usage: register <username> <password>', 'warn', theme));
+              break;
+            }
+            const result = auth.register(username, password);
+            if (result.success) {
+              loggedInUser = result.username;
+              console.log(colorize(`  ✓ Account created! Logged in as ${result.username}`, 'success', theme));
+            } else {
+              console.log(colorize(`  ✗ ${result.error}`, 'error', theme));
+            }
+          }
+          break;
+
+        case 'passwd':
+          {
+            if (loggedInUser === 'guest') {
+              console.log(colorize('  ✗ Must be logged in to change password', 'error', theme));
+              break;
+            }
+            const oldPass = args[0];
+            const newPass = args[1];
+            if (!oldPass || !newPass) {
+              console.log(colorize('  Usage: passwd <old-password> <new-password>', 'warn', theme));
+              break;
+            }
+            const result = auth.changePassword(loggedInUser, oldPass, newPass);
+            if (result.success) {
+              console.log(colorize('  ✓ Password changed', 'success', theme));
+            } else {
+              console.log(colorize(`  ✗ ${result.error}`, 'error', theme));
+            }
+          }
+          break;
+
+        case 'users':
+          {
+            const users = auth.listUsers();
+            if (!users.length) {
+              console.log(colorize('  No registered users.', 'muted', theme));
+            } else {
+              console.log('');
+              console.log(colorize('  ── Registered Users ──', 'muted', theme));
+              for (const u of users) {
+                const active = u.username === loggedInUser ? colorize(' ◀ ACTIVE', 'success', theme) : '';
+                console.log(`    ${colorize('▸', 'secondary', theme)} ${colorize(u.username, 'primary', theme)} ${colorize(u.created, 'muted', theme)}${active}`);
+              }
+              console.log('');
+            }
+          }
+          break;
+
+        case '/auth':
+          console.log('');
+          console.log(colorize('  ── Authentication Commands ──', 'muted', theme));
+          console.log(`    ${colorize('whoami'.padEnd(20), 'secondary', theme)} Show current user`);
+          console.log(`    ${colorize('login <user> <pass>'.padEnd(20), 'secondary', theme)} Log in`);
+          console.log(`    ${colorize('register <user> <pass>'.padEnd(20), 'secondary', theme)} Create account`);
+          console.log(`    ${colorize('logout'.padEnd(20), 'secondary', theme)} Log out`);
+          console.log(`    ${colorize('passwd <old> <new>'.padEnd(20), 'secondary', theme)} Change password`);
+          console.log(`    ${colorize('users'.padEnd(20), 'secondary', theme)} List registered users`);
+          console.log('');
           break;
 
         // ════════════════════════════════════════════════════
