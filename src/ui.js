@@ -751,10 +751,8 @@ function startHudRefresh(theme, intervalMs = 1000) {
   const t = theme || THEMES.cyber;
 
   const draw = () => {
-    // Draw HUD at top-right (live clock)
+    // Only draw HUD — banner is handled by unified animation
     process.stdout.write(renderHudAtTop(t));
-    // Redraw banner at top-left (static, but keeps it visible)
-    process.stdout.write(renderBannerAtTop(t));
   };
 
   // Initial draw

@@ -198,12 +198,13 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
   let enginesReady = false;
   let sessionStartTime = Date.now();
 
-  // ── Unified animation loop (500ms, single timer) ─────────
+  // ── Unified animation loop (1000ms, single timer) ─────────
+  // This is the ONLY render loop — draws HUD, banner, and status bar
+  let lastRenderState = '';
   const startUnifiedAnimation = () => {
     if (!isTTY) return; // no animation in piped mode
 
-    layout.startAnimation((phase) => {
-      // Update clock
+    const draw = () => {
       const now = new Date();
       const state = {
         clock: now.toLocaleTimeString('en-US', { hour12: false }),
@@ -214,15 +215,44 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
         engineCount: 17,
       };
 
-      // Get memory count if ready
+      // Get memory count (cached every 5s, read from cache here)
       if (enginesReady && memory.stats) {
-        const ms = memory.stats();
-        state.memoryCount = ms.total || 0;
+        try {
+          const ms = memory.stats();
+          state.memoryCount = ms.total || 0;
+        } catch (_) {}
       }
 
-      // Render the layout frame
+      // Build state key to detect changes
+      const stateKey = `${state.clock}|${state.memoryCount}|${state.sessionTime}`;
+      if (stateKey === lastRenderState) return; // skip if nothing changed
+      lastRenderState = stateKey;
+
+      // Draw HUD at top-right (full 90-col cyberpunk overlay)
+      process.stdout.write(renderHudAtTop(theme));
+
+      // Draw banner at top-left (3D block art)
+      process.stdout.write(renderBannerAtTop(theme));
+
+      // Draw layout frame (status bar at bottom)
       process.stdout.write(layout.renderFrame(theme, state));
-    }, 500);
+    };
+
+    // Initial draw
+    draw();
+
+    // Refresh every 1000ms (single loop, no competing timers)
+    const timer = setInterval(draw, 1000);
+
+    // Handle resize
+    const onResize = () => draw();
+    process.stdout.on('resize', onResize);
+
+    // Store cleanup
+    layout._cleanupTimer = () => {
+      clearInterval(timer);
+      process.stdout.removeListener('resize', onResize);
+    };
   };
 
   // ── 3D Animated Loading ──────────────────────────────────
@@ -442,8 +472,8 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
     } catch (_) {}
   }, 5000);
 
-  // Start the real-time HUD overlay (legacy, replaced by layout manager)
-  const stopHud = startHudRefresh(theme, 1000);
+  // HUD refresh removed — unified animation handles all rendering
+  const stopHud = () => {};
 
   // ── Create Chat Panel (legacy, for /chat command) ─────
   const chatPanel = new ChatPanel({ theme });
@@ -587,8 +617,8 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
         case 'exit':
         case '/quit':
         case '/exit':
-          if (stopHud) stopHud();
-          layout.stopAnimation();
+          
+          
           chatPanel.stopAnimation();
           // End session and stop engines
           try {
@@ -1720,8 +1750,8 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
   });
 
   rl.on('close', async () => {
-    if (stopHud) stopHud();
-    layout.stopAnimation();
+    
+    
     chatPanel.stopAnimation();
     try {
       if (currentSession) await sessions.end(currentSession.id);
