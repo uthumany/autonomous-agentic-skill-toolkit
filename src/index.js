@@ -225,11 +225,60 @@ function startRepl() {
 
   initEngines();
 
+  // ── P0-1: Error Boundaries ─────────────────────────────
+  process.on('uncaughtException', (err) => {
+    if (enginesReady) {
+      console.log(colorize(`  ✗ Uncaught: ${err.message}`, 'error', theme));
+      chatPanel.errorFlash();
+      try { rl.prompt(); } catch (_) {}
+    }
+  });
+  process.on('unhandledRejection', (err) => {
+    if (enginesReady) {
+      console.log(colorize(`  ✗ Unhandled: ${err}`, 'error', theme));
+      chatPanel.errorFlash();
+      try { rl.prompt(); } catch (_) {}
+    }
+  });
+
+  // ── P0-4: Cached stats for status bar ──────────────────
+  let cachedStats = { memory: 0, goals: 0, skills: 0, mcp: 0 };
+  setInterval(async () => {
+    if (!enginesReady) return;
+    try {
+      const ms = await memory.stats();
+      const gs = await goals.stats();
+      const ss = await skills.stats();
+      const mc = await mcp.stats();
+      cachedStats = { memory: ms.total || 0, goals: gs.total || 0, skills: ss.total || 0, mcp: mc.total || 0 };
+    } catch (_) {}
+  }, 5000);
+
   // Start the real-time HUD overlay (legacy, replaced by layout manager)
   const stopHud = startHudRefresh(theme, 1000);
 
   // ── Create Chat Panel (legacy, for /chat command) ─────
   const chatPanel = new ChatPanel({ theme });
+
+  // ── P1-6: Command Aliases ──────────────────────────────
+  const aliases = {
+    'q': 'quit', 'Q': 'quit', 'exit': 'quit',
+    'h': 'help', 'H': 'help',
+    's': 'status', 'S': 'status',
+    'm': 'memory list', 'M': 'memory list',
+    'g': 'goal list', 'G': 'goal list',
+    'sk': 'skill list',
+    'ml': 'model list',
+    'kb': 'kb stats',
+    'ss': 'session list',
+    'w': 'watch list',
+    'd': 'delegate list',
+    'e': '/engines',
+    't': '/theme',
+    'l': '/layout',
+    'c': '/config list',
+    '?': '/help',
+  };
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -248,13 +297,46 @@ function startRepl() {
         'chat', 'attach', 'files', 'tree', 'upload',
         'memory', 'skill', 'skills', 'goal', 'goals', 'model', 'models',
         'cron', 'kb', 'knowledge', 'session', 'sessions',
-        'search', 'extract', 'watch', 'delegate',
+        'search', 'extract', 'watch', 'delegate', 'ask',
         'setup', 'config', 'gateway', 'mcp', 'font',
         '/setup', '/config', '/gateway', '/mcp', '/theme', '/themes',
         '/font', '/help', '/commands', '/status', '/engines', '/clear', '/quit',
         '/layout', '/chat', 'layout',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
+
+      // P1-8: Smart subcommand completion
+      const subcmds = {
+        '/theme': Object.keys(THEMES),
+        'theme': Object.keys(THEMES),
+        'help': ['testing','generate','memory','skills','goals','models','cron','knowledge','sessions','web','watchdog','delegation','shell'],
+        '/layout': ['wide','compact','minimal','zen'],
+        'layout': ['wide','compact','minimal','zen'],
+        'config': ['get','set','list','reset','export','secret'],
+        '/config': ['get','set','list','reset','export','secret'],
+        'gateway': ['test','test:all','list','setkey'],
+        '/gateway': ['test','test:all','list','setkey'],
+        'mcp': ['list','add','test','remove','stats'],
+        '/mcp': ['list','add','test','remove','stats'],
+        'memory': ['add','list','search','stats','remove'],
+        'skill': ['list','load','search','stats'],
+        'goal': ['add','list','done','kanban','review','remove'],
+        'model': ['list','active','set','route','usage','providers'],
+        'cron': ['add','list','run','pause','resume','remove','stats'],
+        'kb': ['index','search','stats','forget','rebuild'],
+        'session': ['list','search','checkpoint','stats'],
+        'watch': ['add','list','check','heartbeat','nudge','stats'],
+        'delegate': ['parallel','list','stats'],
+        'model': ['list','active','set','route','usage','providers'],
+      };
+      const parts = line.split(/\s+/);
+      if (parts.length >= 2 && subcmds[parts[0]]) {
+        const rest = parts[parts.length - 1];
+        const prefix = parts.slice(0, -1).join(' ') + ' ';
+        const subHits = subcmds[parts[0]].filter(s => s.startsWith(rest));
+        return [subHits.map(s => prefix + s), line];
+      }
+
       return [hits.length ? hits : cmds, line];
     },
   });
@@ -275,7 +357,22 @@ function startRepl() {
 
     const [rawCmd, ...args] = input.split(/\s+/);
     // Support /slash commands — strip prefix for matching, keep original for display
-    const cmd = rawCmd.startsWith('/') ? rawCmd : rawCmd;
+    let cmd = rawCmd.startsWith('/') ? rawCmd : rawCmd;
+
+    // P1-6: Resolve command aliases
+    if (aliases[cmd] && !args.length) {
+      const resolved = aliases[cmd];
+      const parts = resolved.split(/\s+/);
+      cmd = parts[0];
+      args.push(...parts.slice(1));
+    }
+
+    // P0-2: Engine health check — warn if engines not ready
+    if (!enginesReady && !['quit', 'exit', '/quit', '/exit', 'help', '/help', 'clear', '/clear'].includes(cmd)) {
+      console.log(colorize('  ⏳ Engines still initializing, please wait...', 'warn', theme));
+      rl.prompt();
+      return;
+    }
 
     // Update chat panel status
     chatPanel.setStatus(`Executing: ${cmd}`);
@@ -294,7 +391,7 @@ function startRepl() {
     try {
       switch (cmd) {
         case 'help':
-          showHelp(theme);
+          showHelp(theme, args[0]);
           break;
 
         case 'quit':
@@ -541,6 +638,30 @@ function startRepl() {
             for (const pr of p) console.log(`  ${colorize(pr.id, 'primary', theme)} — ${pr.name} (${pr.models?.length || 0} models)`);
           } else {
             console.log(colorize('  Usage: model <list|active|set|route|usage|providers> [args]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  ASK — Query AI model via gateway
+        // ════════════════════════════════════════════════════
+        case 'ask':
+          if (!args[0]) {
+            console.log(colorize('  Usage: ask <prompt>', 'warn', theme));
+            break;
+          }
+          const prompt = args.join(' ');
+          console.log(colorize('  ⏳ Querying AI model...', 'muted', theme));
+          try {
+            const active = await models.getActive();
+            const provider = active?.provider || 'openai';
+            const response = await gateway.chat(provider, [{ role: 'user', content: prompt }]);
+            console.log('');
+            console.log(colorize(`  ── Response (${provider}) ──`, 'muted', theme));
+            console.log(`  ${response.replace(/\n/g, '\n  ')}`);
+            console.log('');
+          } catch (e) {
+            console.log(colorize(`  ✗ AI query failed: ${e.message}`, 'error', theme));
+            console.log(colorize('  Tip: Set API key with "/gateway setkey <provider> <key>"', 'muted', theme));
           }
           break;
 
@@ -897,8 +1018,21 @@ function startRepl() {
               const newTheme = THEMES[selected];
               Object.assign(theme, newTheme);
               console.log(colorize(`  ✓ Theme changed to "${selected}"`, 'success', theme));
-              // Flash effect
+              // P1-7: Full redraw with new theme
               chatPanel.flash();
+              if (isTTY) {
+                // Redraw layout with new theme colors
+                process.stdout.write(layout.renderFrame(theme, {
+                  clock: new Date().toLocaleTimeString('en-US', { hour12: false }),
+                  date: new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+                  themeName: selected,
+                  memoryCount: cachedStats.memory,
+                  engineCount: 17,
+                }));
+                // Redraw HUD with new theme
+                process.stdout.write(renderHudAtTop(theme));
+                process.stdout.write(renderBannerAtTop(theme));
+              }
             } else {
               console.log(colorize(`  ✗ Unknown theme: "${themeName}"`, 'error', theme));
             }
@@ -1204,157 +1338,114 @@ function saveHistory(rl) {
 // REPL COMMAND HANDLERS
 // ════════════════════════════════════════════════════════════
 
-function showHelp(theme) {
+function showHelp(theme, section) {
   const sections = [
-    {
-      title: 'TESTING',
-      items: [
-        { cmd: 'test:web <url>', desc: 'Run Playwright web test' },
-        { cmd: 'test:mobile <url> [device]', desc: 'Mobile device emulation test' },
-        { cmd: 'test:api <url> [method] [data]', desc: 'API endpoint test' },
-        { cmd: 'test:accessibility <url>', desc: 'axe-core accessibility audit' },
-        { cmd: 'test:performance <url>', desc: 'Lighthouse performance audit' },
-        { cmd: 'test:flakiness <url> [n]', desc: 'Flakiness detection (n iterations)' },
-        { cmd: 'test:visual <url>', desc: 'Visual regression vs baseline' },
-      ],
-    },
-    {
-      title: 'GENERATION & RECORDING',
-      items: [
-        { cmd: 'generate:assertions <url>', desc: 'AI test oracle — auto-generate assertions' },
-        { cmd: 'generate:report <file> [fmt]', desc: 'Generate JSON/Markdown report' },
-        { cmd: 'capture:screenshot <url>', desc: 'Capture screenshot' },
-        { cmd: 'record:trace <url> [sec]', desc: 'Record session trace (.uthyreplay)' },
-        { cmd: 'run:parallel <url1,url2>', desc: 'Parallel execution engine' },
-      ],
-    },
-    {
-      title: 'PROVISIONING',
-      items: [
-        { cmd: 'provision <dir>', desc: 'Provision test environment from env.yaml' },
-      ],
-    },
-    {
-      title: 'SHELL',
-      items: [
-        { cmd: 'help', desc: 'Show this help' },
-        { cmd: 'themes', desc: 'List available themes' },
-        { cmd: 'theme <name>', desc: 'Switch theme' },
-        { cmd: 'modules', desc: 'Show loaded modules' },
-        { cmd: 'status', desc: 'System status' },
-        { cmd: 'social', desc: 'Show social media links' },
-        { cmd: 'hud', desc: 'Refresh the holographic HUD overlay' },
-        { cmd: 'about', desc: 'About UTHY AGENTIC OS' },
-        { cmd: 'clear', desc: 'Clear screen' },
-        { cmd: 'quit / exit', desc: 'Exit UTHY AGENTIC OS' },
-      ],
-    },
-    {
-      title: '💬 Chat & Files',
-      items: [
-        { cmd: 'chat', desc: 'Show chat input panel' },
-        { cmd: 'attach <file>', desc: 'Attach a file for processing' },
-        { cmd: 'files [dir]', desc: 'Show file tree of directory' },
-        { cmd: 'upload', desc: 'Show supported file types' },
-      ],
-    },
-    {
-      title: '🧠 Memory',
-      items: [
-        { cmd: 'memory add <fact>', desc: 'Store a persistent memory' },
-        { cmd: 'memory list', desc: 'List all memories by score' },
-        { cmd: 'memory search <q>', desc: 'Search memories by keyword' },
-        { cmd: 'memory stats', desc: 'Memory statistics' },
-      ],
-    },
-    {
-      title: '⚡ Skills',
-      items: [
-        { cmd: 'skill list', desc: 'List available workflow skills' },
-        { cmd: 'skill load <name>', desc: 'Load a skill into context' },
-        { cmd: 'skill search <q>', desc: 'Search skills by keyword' },
-      ],
-    },
-    {
-      title: '🎯 Goals',
-      items: [
-        { cmd: 'goal add <text>', desc: 'Add a new goal' },
-        { cmd: 'goal list', desc: 'List all goals' },
-        { cmd: 'goal done <id>', desc: 'Mark goal as completed' },
-        { cmd: 'goal kanban', desc: 'Visual kanban board' },
-        { cmd: 'goal review', desc: 'Goal progress summary' },
-      ],
-    },
-    {
-      title: '🤖 Models',
-      items: [
-        { cmd: 'model list', desc: 'List available AI models' },
-        { cmd: 'model set <id>', desc: 'Set active model' },
-        { cmd: 'model route <type>', desc: 'Find best model for task' },
-        { cmd: 'model usage', desc: 'Show token usage & cost' },
-      ],
-    },
-    {
-      title: '⏰ Cron',
-      items: [
-        { cmd: 'cron add <sched> <cmd>', desc: 'Schedule a recurring task' },
-        { cmd: 'cron list', desc: 'List all cron jobs' },
-        { cmd: 'cron run <id>', desc: 'Manually trigger a job' },
-        { cmd: 'cron pause/resume <id>', desc: 'Pause or resume a job' },
-      ],
-    },
-    {
-      title: '📚 Knowledge Base',
-      items: [
-        { cmd: 'kb index <dir>', desc: 'Index a directory for search' },
-        { cmd: 'kb search <query>', desc: 'TF-IDF search across files' },
-        { cmd: 'kb stats', desc: 'Index statistics' },
-        { cmd: 'kb rebuild <dir>', desc: 'Rebuild the knowledge index' },
-      ],
-    },
-    {
-      title: '📝 Sessions',
-      items: [
-        { cmd: 'session list', desc: 'List recent sessions' },
-        { cmd: 'session search <q>', desc: 'Search session history' },
-        { cmd: 'session checkpoint <label>', desc: 'Save a checkpoint' },
-      ],
-    },
-    {
-      title: '🌐 Web',
-      items: [
-        { cmd: 'search <query>', desc: 'Search the web (DuckDuckGo)' },
-        { cmd: 'extract <url>', desc: 'Extract text from a URL' },
-      ],
-    },
-    {
-      title: '👁️ Watchdog',
-      items: [
-        { cmd: 'watch add <url/file>', desc: 'Start monitoring a target' },
-        { cmd: 'watch list', desc: 'List active watches' },
-        { cmd: 'watch check', desc: 'Check all watches now' },
-        { cmd: 'watch heartbeat', desc: 'Record activity heartbeat' },
-      ],
-    },
-    {
-      title: '🔀 Delegation',
-      items: [
-        { cmd: 'delegate <task>', desc: 'Delegate a task to a worker' },
-        { cmd: 'delegate parallel <t1> | <t2>', desc: 'Run tasks in parallel' },
-        { cmd: 'delegate list', desc: 'List delegations' },
-      ],
-    },
+    { id: 'testing',    title: '🧪 Testing',       items: [
+      { cmd: 'test:web <url>', desc: 'Run Playwright web test' },
+      { cmd: 'test:mobile <url> [device]', desc: 'Mobile device emulation' },
+      { cmd: 'test:api <url> [method]', desc: 'API endpoint test' },
+      { cmd: 'test:accessibility <url>', desc: 'axe-core audit' },
+      { cmd: 'test:performance <url>', desc: 'Lighthouse audit' },
+      { cmd: 'test:flakiness <url> [n]', desc: 'Flakiness detection' },
+      { cmd: 'test:visual <url>', desc: 'Visual regression' },
+    ]},
+    { id: 'generate',   title: '📝 Generation',    items: [
+      { cmd: 'generate:assertions <url>', desc: 'AI test oracle' },
+      { cmd: 'generate:report <file>', desc: 'JSON/Markdown report' },
+      { cmd: 'capture:screenshot <url>', desc: 'Capture screenshot' },
+      { cmd: 'record:trace <url>', desc: 'Session trace (.uthyreplay)' },
+      { cmd: 'run:parallel <urls>', desc: 'Parallel execution' },
+    ]},
+    { id: 'memory',     title: '🧠 Memory',        items: [
+      { cmd: 'memory add <fact>', desc: 'Store persistent memory' },
+      { cmd: 'memory list', desc: 'List by score' },
+      { cmd: 'memory search <q>', desc: 'Keyword search' },
+      { cmd: 'memory stats', desc: 'Statistics' },
+    ]},
+    { id: 'skills',     title: '⚡ Skills',         items: [
+      { cmd: 'skill list', desc: 'List workflow skills' },
+      { cmd: 'skill load <name>', desc: 'Load into context' },
+      { cmd: 'skill search <q>', desc: 'Search skills' },
+    ]},
+    { id: 'goals',      title: '🎯 Goals',          items: [
+      { cmd: 'goal add <text>', desc: 'Add a goal' },
+      { cmd: 'goal list', desc: 'List all goals' },
+      { cmd: 'goal done <id>', desc: 'Mark completed' },
+      { cmd: 'goal kanban', desc: 'Visual kanban board' },
+    ]},
+    { id: 'models',     title: '🤖 Models',         items: [
+      { cmd: 'model list', desc: 'List AI models' },
+      { cmd: 'model set <id>', desc: 'Set active model' },
+      { cmd: 'model route <type>', desc: 'Best model for task' },
+      { cmd: 'ask <prompt>', desc: 'Query active AI model' },
+    ]},
+    { id: 'cron',       title: '⏰ Cron',           items: [
+      { cmd: 'cron add <sched> <cmd>', desc: 'Schedule task' },
+      { cmd: 'cron list', desc: 'List jobs' },
+      { cmd: 'cron run <id>', desc: 'Trigger manually' },
+    ]},
+    { id: 'knowledge',  title: '📚 Knowledge',      items: [
+      { cmd: 'kb index <dir>', desc: 'Index for search' },
+      { cmd: 'kb search <query>', desc: 'TF-IDF search' },
+      { cmd: 'kb stats', desc: 'Index statistics' },
+    ]},
+    { id: 'sessions',   title: '📝 Sessions',       items: [
+      { cmd: 'session list', desc: 'Recent sessions' },
+      { cmd: 'session search <q>', desc: 'Search history' },
+      { cmd: 'session checkpoint <label>', desc: 'Save checkpoint' },
+    ]},
+    { id: 'web',        title: '🌐 Web',            items: [
+      { cmd: 'search <query>', desc: 'DuckDuckGo search' },
+      { cmd: 'extract <url>', desc: 'Extract page text' },
+    ]},
+    { id: 'watchdog',   title: '👁️ Watchdog',       items: [
+      { cmd: 'watch add <url/file>', desc: 'Start monitoring' },
+      { cmd: 'watch list', desc: 'Active watches' },
+      { cmd: 'watch check', desc: 'Check all now' },
+    ]},
+    { id: 'delegation', title: '🔀 Delegation',     items: [
+      { cmd: 'delegate <task>', desc: 'Delegate to worker' },
+      { cmd: 'delegate parallel <t1> | <t2>', desc: 'Parallel tasks' },
+    ]},
+    { id: 'shell',      title: '🖥️ Shell',          items: [
+      { cmd: 'help [section]', desc: 'Show help (paginated)' },
+      { cmd: 'themes / theme <name>', desc: 'Change theme' },
+      { cmd: 'status / /status', desc: 'System dashboard' },
+      { cmd: 'about', desc: 'About UTHY AGENTIC OS' },
+      { cmd: 'clear', desc: 'Clear screen' },
+      { cmd: 'quit / exit / q', desc: 'Exit' },
+      { cmd: '?', desc: 'Show this help' },
+    ]},
   ];
 
-  console.log('');
-  for (const sec of sections) {
-    console.log(colorize(`  ── ${sec.title} ${'─'.repeat(Math.max(1, 60 - sec.title.length))}`, 'muted', theme));
-    for (const item of sec.items) {
-      const cmd = colorize(item.cmd.padEnd(32), 'secondary', theme);
-      console.log(`    ${cmd}${colorize(item.desc, 'muted', theme)}`);
+  // Paginated: show specific section
+  if (section) {
+    const sec = sections.find(s => s.id === section || s.title.toLowerCase().includes(section.toLowerCase()));
+    if (sec) {
+      console.log('');
+      console.log(colorize(`  ── ${sec.title} ${'─'.repeat(Math.max(1, 50 - sec.title.length))}`, 'muted', theme));
+      for (const item of sec.items) {
+        console.log(`    ${colorize(item.cmd.padEnd(32), 'secondary', theme)}${colorize(item.desc, 'muted', theme)}`);
+      }
+      console.log('');
+    } else {
+      console.log(colorize(`  ✗ Unknown section: "${section}". Use "help" to see all sections.`, 'error', theme));
     }
-    console.log('');
+    return;
   }
+
+  // Default: show section index only (compact)
+  console.log('');
+  console.log(colorize('  ── Commands ─ Type "help <section>" for details ──', 'muted', theme));
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    const count = sec.items.length;
+    console.log(`    ${colorize(sec.id.padEnd(14), 'secondary', theme)} ${sec.title} ${colorize(`(${count} cmds)`, 'muted', theme)}`);
+  }
+  console.log('');
+  console.log(colorize('  ── / Slash Commands ─ Type "/help" for details ──', 'muted', theme));
+  console.log(`    ${colorize('/setup /config /gateway /mcp /theme /font /layout /chat /status /engines', 'secondary', theme)}`);
+  console.log('');
 }
 
 function showThemes(theme) {
