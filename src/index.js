@@ -72,6 +72,9 @@ const { GatewayManager } = require('./modules/gateway');
 const { MCPManager } = require('./modules/mcp');
 const { Animations } = require('./modules/animations');
 
+// ── TUI Layout Manager (responsive zones, unified animation) ─
+const { LayoutManager } = require('./modules/tui');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
@@ -109,25 +112,39 @@ function startRepl() {
   const config = loadConfig();
   const theme = getTheme(config);
 
-  // Clear screen
-  process.stdout.write('\x1b[2J\x1b[H');
+  // ── Layout Manager (responsive, isTTY-aware) ────────────
+  const layout = new LayoutManager();
+  const isTTY = layout.isTTY;
 
-  // Draw banner at TOP-LEFT (3D block art)
-  process.stdout.write(renderBannerAtTop(theme));
+  // Clear screen (only in TTY mode)
+  if (isTTY) process.stdout.write('\x1b[2J\x1b[H');
 
-  // Draw HUD at TOP-RIGHT (cyberpunk overlay) — starts after banner
-  const bannerHeight = 10; // BANNER_LINES.length
-  const hudLines = renderHudCard(theme);
-  const hudHeight = hudLines.length + 2;
-  const reserveRows = Math.max(bannerHeight, hudHeight) + 2;
-  console.log('\n'.repeat(reserveRows));
+  // Draw initial frame
+  if (isTTY) {
+    const initState = {
+      clock: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      date: new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+      themeName: config.theme || 'cyber',
+      memoryCount: 0,
+      sessionTime: '0:00',
+      engineCount: 17,
+    };
+    process.stdout.write(layout.renderFrame(theme, initState));
 
-  // Welcome text below both panels
+    // Push content below top zone
+    const zones = layout.getZones();
+    console.log('\n'.repeat(zones.top.height + 1));
+  }
+
+  // Welcome text
   console.log(colorize(`  Welcome to UTHY AGENTIC OS v${VERSION} — Your Autonomous Agentic Operating System`, 'info', theme));
-  console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
+  if (isTTY) {
+    console.log(colorize(`  Layout: ${layout.mode} (${layout.cols}×${layout.rows}) | Type "/layout" to change`, 'muted', theme));
+  }
+  console.log(colorize('  Type "help" for commands, "/help" for slash commands, "quit" to exit', 'muted', theme));
   console.log('');
 
-  // ── Initialize all engines (sync wrappers) ─────────────
+  // ── Initialize all engines ───────────────────────────────
   const memory = new MemoryEngine();
   const skills = new SkillEngine();
   const goals = new GoalEngine();
@@ -144,8 +161,35 @@ function startRepl() {
 
   let currentSession = null;
   let enginesReady = false;
+  let sessionStartTime = Date.now();
 
-  // Initialize engines synchronously via try-catch wrappers
+  // ── Unified animation loop (500ms, single timer) ─────────
+  const startUnifiedAnimation = () => {
+    if (!isTTY) return; // no animation in piped mode
+
+    layout.startAnimation((phase) => {
+      // Update clock
+      const now = new Date();
+      const state = {
+        clock: now.toLocaleTimeString('en-US', { hour12: false }),
+        date: now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+        themeName: config.theme || 'cyber',
+        memoryCount: 0,
+        sessionTime: Math.floor((Date.now() - sessionStartTime) / 60000) + ':' + String(Math.floor(((Date.now() - sessionStartTime) % 60000) / 1000)).padStart(2, '0'),
+        engineCount: 17,
+      };
+
+      // Get memory count if ready
+      if (enginesReady && memory.stats) {
+        memory.stats().then(s => { state.memoryCount = s.total || 0; }).catch(() => {});
+      }
+
+      // Render the layout frame
+      process.stdout.write(layout.renderFrame(theme, state));
+    }, 500);
+  };
+
+  // Initialize engines
   const initEngines = async () => {
     try {
       await configMgr.init();
@@ -162,34 +206,35 @@ function startRepl() {
       await mcp.init();
       await gateway.init();
       currentSession = await sessions.start('UTHY Session ' + new Date().toISOString().slice(0, 19));
+      sessionStartTime = Date.now();
       watchdog.heartbeat('session-start');
       enginesReady = true;
-      console.log(colorize('  ✓ All 10 engines initialized', 'success', theme));
+      console.log(colorize(`  ✓ All 13 engines initialized (${layout.mode} mode)`, 'success', theme));
       console.log('');
-      // Start the Chat Panel animation (HUD-framed input)
-      chatPanel.startAnimation(120);
-      chatPanel.setStatus('All systems online');
+      // Start unified animation (replaces 3 separate timers)
+      startUnifiedAnimation();
       rl.prompt();
     } catch (e) {
-      enginesReady = true; // still set to true so commands can be attempted
+      enginesReady = true;
       console.log(colorize(`  ⚠ Engine init warning: ${e.message}`, 'warn', theme));
       console.log('');
+      startUnifiedAnimation();
       rl.prompt();
     }
   };
 
   initEngines();
 
-  // Start the real-time HUD overlay (top-right, clock ticks every second)
+  // Start the real-time HUD overlay (legacy, replaced by layout manager)
   const stopHud = startHudRefresh(theme, 1000);
 
-  // ── Create Chat Panel (HUD-framed input at bottom) ─────
+  // ── Create Chat Panel (legacy, for /chat command) ─────
   const chatPanel = new ChatPanel({ theme });
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chatPanel.getPromptString(),
+    prompt: layout.getPromptString(theme),
     historySize: config.historySize || 100,
     completer: (line) => {
       const cmds = [
@@ -207,6 +252,7 @@ function startRepl() {
         'setup', 'config', 'gateway', 'mcp', 'font',
         '/setup', '/config', '/gateway', '/mcp', '/theme', '/themes',
         '/font', '/help', '/commands', '/status', '/engines', '/clear', '/quit',
+        '/layout', '/chat', 'layout',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
       return [hits.length ? hits : cmds, line];
@@ -256,6 +302,7 @@ function startRepl() {
         case '/quit':
         case '/exit':
           if (stopHud) stopHud();
+          layout.stopAnimation();
           chatPanel.stopAnimation();
           // End session and stop engines
           try {
@@ -920,6 +967,8 @@ function startRepl() {
             { cmd: '/mcp <list|add|test|remove>', desc: 'MCP server management' },
             { cmd: '/theme [name|number]', desc: 'Change or list themes with preview' },
             { cmd: '/font [name|size <n>]', desc: 'Change font or text size' },
+            { cmd: '/layout [mode]', desc: 'Change layout (wide/compact/minimal/zen)' },
+            { cmd: '/chat', desc: 'Toggle chat input panel on/off' },
             { cmd: '/status', desc: 'Full system status dashboard' },
             { cmd: '/engines', desc: 'Show all engine statuses' },
             { cmd: '/clear', desc: 'Clear screen and redraw' },
@@ -977,6 +1026,65 @@ function startRepl() {
             console.log(`  ${icon} ${name.padEnd(15)} ${methods} methods`);
           }
           console.log('');
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  LAYOUT MODE
+        // ════════════════════════════════════════════════════
+        case '/layout':
+        case 'layout':
+          if (!args[0]) {
+            const info = layout.getInfo();
+            console.log('');
+            console.log(colorize('  ── Layout Options ───────────────────────────────', 'muted', theme));
+            const modes = [
+              { name: 'wide',    desc: 'Banner + HUD + Chat Panel (≥140 cols)' },
+              { name: 'compact', desc: 'Compact HUD + Status Bar (≥90 cols)' },
+              { name: 'minimal', desc: 'Status Bar only (≥60 cols)' },
+              { name: 'zen',     desc: 'No decorations, pure REPL' },
+            ];
+            for (const m of modes) {
+              const active = m.name === info.mode ? colorize(' ◀ ACTIVE', 'success', theme) : '';
+              console.log(`  ${colorize(m.name.padEnd(12), 'primary', theme)} ${m.desc}${active}`);
+            }
+            console.log('');
+            console.log(colorize(`  Current: ${info.mode} (${info.cols}×${info.rows}) | TTY: ${info.isTTY}`, 'muted', theme));
+            console.log(colorize('  Usage: /layout <wide|compact|minimal|zen>', 'muted', theme));
+            console.log('');
+          } else {
+            const newMode = args[0];
+            if (layout.setMode(newMode)) {
+              console.log(colorize(`  ✓ Layout changed to "${newMode}"`, 'success', theme));
+              // Redraw
+              if (isTTY) {
+                process.stdout.write('\x1b[2J\x1b[H');
+                const zones = layout.getZones();
+                process.stdout.write(layout.renderFrame(theme, {
+                  clock: new Date().toLocaleTimeString('en-US', { hour12: false }),
+                  date: new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+                  themeName: config.theme || 'cyber',
+                  engineCount: 17,
+                }));
+                console.log('\n'.repeat(zones.top.height + 1));
+              }
+            } else {
+              console.log(colorize(`  ✗ Unknown layout: "${newMode}". Options: wide, compact, minimal, zen`, 'error', theme));
+            }
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  CHAT PANEL TOGGLE
+        // ════════════════════════════════════════════════════
+        case '/chat':
+          const chatOn = layout.toggleChat();
+          console.log(colorize(`  ✓ Chat panel ${chatOn ? 'ON' : 'OFF'}`, 'success', theme));
+          if (chatOn && isTTY) {
+            chatPanel.startAnimation(500);
+            chatPanel.setStatus('Chat panel active');
+          } else {
+            chatPanel.stopAnimation();
+          }
           break;
 
         case 'hud':
@@ -1071,6 +1179,7 @@ function startRepl() {
 
   rl.on('close', async () => {
     if (stopHud) stopHud();
+    layout.stopAnimation();
     chatPanel.stopAnimation();
     try {
       if (currentSession) await sessions.end(currentSession.id);
