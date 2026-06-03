@@ -19,9 +19,9 @@ const os = require('os');
 
 // ── UI ──────────────────────────────────────────────────────
 const {
-  THEMES, renderBanner, renderBox, renderMenu,
+  THEMES, renderBanner, renderBannerAtTop, renderBox, renderMenu,
   colorize, progressBar, spinner, divider,
-  startHudRefresh, renderHudCard, stripAnsi,
+  startHudRefresh, renderHudCard, renderHudAtTop, stripAnsi,
 } = require('./ui');
 
 // ── Core Modules ────────────────────────────────────────────
@@ -100,14 +100,20 @@ function startRepl() {
   const config = loadConfig();
   const theme = getTheme(config);
 
-  // Clear screen, push content below HUD overlay (HUD occupies ~20 rows at top-right)
+  // Clear screen
   process.stdout.write('\x1b[2J\x1b[H');
-  // Reserve space for HUD — push banner below it
+
+  // Draw banner at TOP-LEFT (3D block art)
+  process.stdout.write(renderBannerAtTop(theme));
+
+  // Draw HUD at TOP-RIGHT (cyberpunk overlay) — starts after banner
+  const bannerHeight = 10; // BANNER_LINES.length
   const hudLines = renderHudCard(theme);
-  const hudHeight = hudLines.length + 2; // +2 margin
-  console.log('\n'.repeat(hudHeight));
-  console.log(renderBanner(theme, config.compactBanner));
-  console.log('');
+  const hudHeight = hudLines.length + 2;
+  const reserveRows = Math.max(bannerHeight, hudHeight) + 2;
+  console.log('\n'.repeat(reserveRows));
+
+  // Welcome text below both panels
   console.log(colorize(`  Welcome to UTHY AGENTIC OS v${VERSION} — Your Autonomous Agentic Operating System`, 'info', theme));
   console.log(colorize('  Type "help" for commands, "quit" to exit', 'muted', theme));
   console.log('');
@@ -221,7 +227,7 @@ function startRepl() {
 
         case 'clear':
           process.stdout.write('\x1b[2J\x1b[H');
-          console.log(renderBanner(theme, true));
+          process.stdout.write(renderBannerAtTop(theme));
           break;
 
         case 'banner':
@@ -639,12 +645,11 @@ function startRepl() {
 
         case 'hud':
         case 'footer':
-          // Redraw HUD immediately
+          // Redraw HUD and banner
           process.stdout.write('\x1b[2J\x1b[H');
-          console.log('\n'.repeat(renderHudCard(theme).length + 2));
-          console.log(renderBanner(theme, true));
-          console.log('');
-          console.log(colorize('  HUD refreshed. Holographic console active...', 'success', theme));
+          process.stdout.write(renderBannerAtTop(theme));
+          console.log('\n'.repeat(12));
+          console.log(colorize('  HUD refreshed. Holographic console + banner active...', 'success', theme));
           break;
 
         case 'test:web':

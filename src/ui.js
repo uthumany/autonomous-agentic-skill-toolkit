@@ -357,20 +357,41 @@ const THEMES = {
 };
 
 // ═══════════════════════════════════════════════════════════
-// ASCII ART BANNER — Qwen CLI Style Gradient
+// ASCII ART BANNER — 3D Block "UTHY AGENTIC OS"
+// Top-left positioned with gradient + 3D shadow
 // ═══════════════════════════════════════════════════════════
 
-const BANNER = `
-\x1b[1m\x1b[38;5;51m ██╗   ██╗████████╗██╗  ██╗██╗   ██╗
-\x1b[38;5;87m ██║   ██║╚══██╔══╝██║  ██║╚██╗ ██╔╝
-\x1b[38;5;123m ██║   ██║   ██║   ███████║ ╚████╔╝
-\x1b[38;5;159m ██║   ██║   ██║   ██╔══██║  ╚██╔╝
-\x1b[38;5;195m ╚██████╔╝   ██║   ██║  ██║   ██║
-\x1b[38;5;231m  ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ╚═╝\x1b[0m
-\x1b[1m\x1b[38;5;201m    ╔═╗╔═╗╔╦╗╔═╗╔╦╗
-\x1b[38;5;207m    ╠═╣║   ║ ╠═ ║║║
-\x1b[38;5;213m    ╩ ╩╚═╝ ╩ ╚═╝═╩╝\x1b[0m
-`;
+const BANNER_LINES = [
+  // ── UTHY in large block (6 rows) ──
+  ' ██╗   ██╗████████╗██╗  ██╗██╗   ██╗       ',
+  ' ██║   ██║╚══██╔══╝██║  ██║╚██╗ ██╔╝       ',
+  ' ██║   ██║   ██║   ███████║ ╚████╔╝        ',
+  ' ██║   ██║   ██║   ██╔══██║  ╚██╔╝         ',
+  ' ╚██████╔╝   ██║   ██║  ██║   ██║          ',
+  '  ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ╚═╝          ',
+  // ── AGENTIC OS in medium block (3 rows) ──
+  ' ▄▀▀▄ ▄▀▀▀▄ ▄▀▀ ▄▀▄ ▀█▀  █  ▄▀▀▄  ▄▀▄ ▄▀▀  ',
+  ' █  █ █▄▄▀▀ █▄▄ █▄█  █   █  █     █▄█ ▄▄█  ',
+  ' ▀▀▀▀ ▀ ▀▀▀ ▀▀▀ ▀ ▀  ▀   ▀  ▀▀▀▀  ▀ ▀ ▀▀▀  ',
+  // ── 3D ground shadow ──
+  ' ░░░░ ░ ░░░ ░░░ ░ ░  ░   ░  ░░░░  ░ ░ ░░░  ',
+];
+
+// Gradient: 6 bright steps for UTHY, 3 mid steps for AGENTIC OS, 1 dim for shadow
+const BANNER_GRADIENT = [
+  51,   // bright cyan
+  87,   // light cyan
+  123,  // cyan-white
+  159,  // ice blue
+  195,  // near-white
+  231,  // white
+  201,  // magenta
+  207,  // light magenta
+  213,  // pink
+  243,  // gray (shadow)
+];
+
+const BANNER = BANNER_LINES.join('\n');
 
 const SMALL_BANNER = `\x1b[1m\x1b[38;5;51m
   ┌──────────────────────────────────────┐
@@ -384,16 +405,39 @@ const SMALL_BANNER = `\x1b[1m\x1b[38;5;51m
 function renderBanner(theme, compact = false) {
   const t = theme || THEMES.cyber;
   const banner = compact ? SMALL_BANNER : BANNER;
-  
+
   if (!compact) {
-    // Color each line with gradient
-    const lines = banner.split('\n');
+    const lines = BANNER_LINES;
     return lines.map((line, i) => {
-      const color = t.bannerGradient[i % t.bannerGradient.length];
+      const colorIdx = i % t.bannerGradient.length;
+      const color = t.bannerGradient[colorIdx] || t.bannerGradient[0];
       return `${color}${line}${t.reset}`;
     }).join('\n');
   }
   return banner;
+}
+
+// ── Render banner at TOP-LEFT with 3D positioning ──────────
+
+function renderBannerAtTop(theme) {
+  const t = theme || THEMES.cyber;
+  const lines = BANNER_LINES;
+
+  let output = saveCursor();
+
+  for (let i = 0; i < lines.length; i++) {
+    const row = i + 1;
+    const col = 1;
+    const colorIdx = i % t.bannerGradient.length;
+    const color = t.bannerGradient[colorIdx] || t.bannerGradient[0];
+
+    output += moveCursor(row, col);
+    output += clearLine();
+    output += `${color}${lines[i]}${t.reset}`;
+  }
+
+  output += restoreCursor();
+  return output;
 }
 
 function renderBox(lines, theme, title) {
@@ -707,7 +751,10 @@ function startHudRefresh(theme, intervalMs = 1000) {
   const t = theme || THEMES.cyber;
 
   const draw = () => {
+    // Draw HUD at top-right (live clock)
     process.stdout.write(renderHudAtTop(t));
+    // Redraw banner at top-left (static, but keeps it visible)
+    process.stdout.write(renderBannerAtTop(t));
   };
 
   // Initial draw
@@ -730,7 +777,9 @@ module.exports = {
   THEMES,
   BANNER,
   SMALL_BANNER,
+  BANNER_LINES,
   renderBanner,
+  renderBannerAtTop,
   renderBox,
   renderMenu,
   colorize,
