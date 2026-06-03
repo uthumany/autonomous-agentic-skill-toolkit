@@ -35,7 +35,7 @@ const LAYOUT_MODES = {
 
 class LayoutManager {
   constructor(options = {}) {
-    this.isTTY = process.stdin.isTTY && process.stdout.isTTY;
+    this.isTTY = !!(process.stdin.isTTY && process.stdout.isTTY);
     this.cols = process.stdout.columns || 80;
     this.rows = process.stdout.rows || 24;
     this.mode = this.isTTY ? this._detectMode() : 'zen';
