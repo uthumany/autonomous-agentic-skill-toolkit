@@ -66,6 +66,12 @@ const { DelegationEngine } = require('./modules/delegation');
 // ── Chat Panel (HUD-framed input) ─────────────────────────
 const { ChatPanel } = require('./modules/chatPanel');
 
+// ── Setup, Config, Gateway, MCP, Animations ───────────────
+const { ConfigManager } = require('./modules/config');
+const { GatewayManager } = require('./modules/gateway');
+const { MCPManager } = require('./modules/mcp');
+const { Animations } = require('./modules/animations');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
@@ -132,6 +138,9 @@ function startRepl() {
   const websearch = new WebSearchEngine();
   const watchdog = new WatchdogEngine();
   const delegation = new DelegationEngine();
+  const configMgr = new ConfigManager();
+  const gateway = new GatewayManager(configMgr);
+  const mcp = new MCPManager();
 
   let currentSession = null;
   let enginesReady = false;
@@ -139,6 +148,7 @@ function startRepl() {
   // Initialize engines synchronously via try-catch wrappers
   const initEngines = async () => {
     try {
+      await configMgr.init();
       await memory.init();
       await skills.init();
       await goals.init();
@@ -149,6 +159,8 @@ function startRepl() {
       await websearch.init();
       await watchdog.init();
       await delegation.init();
+      await mcp.init();
+      await gateway.init();
       currentSession = await sessions.start('UTHY Session ' + new Date().toISOString().slice(0, 19));
       watchdog.heartbeat('session-start');
       enginesReady = true;
@@ -192,6 +204,9 @@ function startRepl() {
         'memory', 'skill', 'skills', 'goal', 'goals', 'model', 'models',
         'cron', 'kb', 'knowledge', 'session', 'sessions',
         'search', 'extract', 'watch', 'delegate',
+        'setup', 'config', 'gateway', 'mcp', 'font',
+        '/setup', '/config', '/gateway', '/mcp', '/theme', '/themes',
+        '/font', '/help', '/commands', '/status', '/engines', '/clear', '/quit',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
       return [hits.length ? hits : cmds, line];
@@ -212,7 +227,9 @@ function startRepl() {
     const input = line.trim();
     if (!input) { rl.prompt(); return; }
 
-    const [cmd, ...args] = input.split(/\s+/);
+    const [rawCmd, ...args] = input.split(/\s+/);
+    // Support /slash commands — strip prefix for matching, keep original for display
+    const cmd = rawCmd.startsWith('/') ? rawCmd : rawCmd;
 
     // Update chat panel status
     chatPanel.setStatus(`Executing: ${cmd}`);
@@ -236,6 +253,8 @@ function startRepl() {
 
         case 'quit':
         case 'exit':
+        case '/quit':
+        case '/exit':
           if (stopHud) stopHud();
           chatPanel.stopAnimation();
           // End session and stop engines
@@ -250,6 +269,7 @@ function startRepl() {
           process.exit(0);
 
         case 'clear':
+        case '/clear':
           process.stdout.write('\x1b[2J\x1b[H');
           process.stdout.write(renderBannerAtTop(theme));
           break;
@@ -665,6 +685,298 @@ function startRepl() {
           } else {
             console.log(colorize('  Usage: delegate <task> | delegate parallel <t1> | <t2> | delegate list | delegate stats', 'warn', theme));
           }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  SETUP WIZARD
+        // ════════════════════════════════════════════════════
+        case 'setup':
+        case '/setup':
+          console.log('');
+          console.log(colorize('  ┌─────────────────────────────────────────────┐', 'secondary', theme));
+          console.log(colorize('  │     UTHY AGENTIC OS — Setup Wizard          │', 'secondary', theme));
+          console.log(colorize('  └─────────────────────────────────────────────┘', 'secondary', theme));
+          console.log('');
+          // Animated setup sequence
+          const setupSteps = [
+            { name: 'Configuration', fn: async () => { await configMgr.init(); return 'OK'; } },
+            { name: 'Memory Engine', fn: async () => { await memory.init(); return 'OK'; } },
+            { name: 'Skill System', fn: async () => { await skills.init(); return `${(await skills.stats()).total} skills`; } },
+            { name: 'Goal Tracker', fn: async () => { await goals.init(); return 'OK'; } },
+            { name: 'Model Router', fn: async () => { await models.init(); return `${(await models.listModels()).length} models`; } },
+            { name: 'Cron Engine', fn: async () => { await cron.init(); return 'OK'; } },
+            { name: 'Knowledge Base', fn: async () => { await knowledge.init(); return 'OK'; } },
+            { name: 'Sessions', fn: async () => { await sessions.init(); return 'OK'; } },
+            { name: 'Web Search', fn: async () => { await websearch.init(); return 'OK'; } },
+            { name: 'Watchdog', fn: async () => { await watchdog.init(); return 'OK'; } },
+            { name: 'Delegation', fn: async () => { await delegation.init(); return 'OK'; } },
+            { name: 'MCP Servers', fn: async () => { await mcp.init(); return `${(await mcp.stats()).total} servers`; } },
+            { name: 'API Gateway', fn: async () => { await gateway.init(); return 'OK'; } },
+          ];
+          for (const step of setupSteps) {
+            try {
+              const result = await step.fn();
+              console.log(colorize(`  ✓ ${step.name.padEnd(20)}`, 'success', theme) + colorize(result, 'muted', theme));
+            } catch (e) {
+              console.log(colorize(`  ✗ ${step.name.padEnd(20)}`, 'error', theme) + colorize(e.message, 'muted', theme));
+            }
+          }
+          console.log('');
+          console.log(colorize('  Setup complete! Type "config list" to see configuration.', 'info', theme));
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  CONFIG MANAGEMENT
+        // ════════════════════════════════════════════════════
+        case 'config':
+        case '/config':
+          if (args[0] === 'get' && args[1]) {
+            const val = configMgr.get(args[1]);
+            console.log(colorize(`  ${args[1]} = ${val !== undefined ? JSON.stringify(val) : 'undefined'}`, 'info', theme));
+          } else if (args[0] === 'set' && args[1] && args[2]) {
+            const val = args.slice(2).join(' ');
+            try { configMgr.set(args[1], JSON.parse(val)); } catch { configMgr.set(args[1], val); }
+            console.log(colorize(`  ✓ ${args[1]} set`, 'success', theme));
+          } else if (args[0] === 'list') {
+            configMgr.list();
+          } else if (args[0] === 'reset') {
+            configMgr.reset(args[1]);
+            console.log(colorize('  ✓ Config reset to defaults', 'success', theme));
+          } else if (args[0] === 'export') {
+            console.log(configMgr.export());
+          } else if (args[0] === 'secret' && args[1] && args[2]) {
+            configMgr.setSecret(args[1], args.slice(2).join(' '));
+            console.log(colorize(`  ✓ Secret "${args[1]}" stored (encrypted)`, 'success', theme));
+          } else {
+            console.log(colorize('  Usage: config <get|set|list|reset|export|secret> [key] [value]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  API GATEWAY
+        // ════════════════════════════════════════════════════
+        case 'gateway':
+        case '/gateway':
+          if (args[0] === 'test' && args[1]) {
+            console.log(colorize(`  Testing ${args[1]}...`, 'muted', theme));
+            const result = await gateway.testConnection(args[1]);
+            console.log(colorize(`  ${result.status === 'connected' ? '✓' : '✗'} ${args[1]}: ${result.status} (${result.latency || 0}ms)`, result.status === 'connected' ? 'success' : 'error', theme));
+          } else if (args[0] === 'test:all') {
+            console.log(colorize('  Testing all providers...', 'muted', theme));
+            const results = await gateway.testAll();
+            for (const r of results) {
+              const icon = r.status === 'connected' ? '✓' : '✗';
+              const color = r.status === 'connected' ? 'success' : 'error';
+              console.log(colorize(`  ${icon} ${r.provider.padEnd(12)} ${r.status} (${r.latency || 0}ms)`, color, theme));
+            }
+          } else if (args[0] === 'list') {
+            const providers = gateway.getProviders();
+            for (const p of providers) {
+              const icon = p.connected ? colorize('●', 'success', theme) : colorize('○', 'muted', theme);
+              console.log(`  ${icon} ${p.id.padEnd(12)} ${p.baseUrl || ''}`);
+            }
+          } else if (args[0] === 'setkey' && args[1] && args[2]) {
+            gateway.setApiKey(args[1], args.slice(2).join(' '));
+            console.log(colorize(`  ✓ API key for ${args[1]} stored`, 'success', theme));
+          } else {
+            console.log(colorize('  Usage: gateway <test|test:all|list|setkey> [provider] [key]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  MCP SERVER MANAGEMENT
+        // ════════════════════════════════════════════════════
+        case 'mcp':
+        case '/mcp':
+          if (args[0] === 'list') {
+            const servers = await mcp.listServers();
+            if (!servers.length) console.log(colorize('  No MCP servers configured.', 'muted', theme));
+            for (const s of servers) {
+              const icon = s.enabled ? colorize('●', 'success', theme) : colorize('○', 'muted', theme);
+              console.log(`  ${icon} ${s.name.padEnd(15)} [${s.type}] ${s.command || s.url || ''}`);
+            }
+          } else if (args[0] === 'add' && args[1]) {
+            const name = args[1];
+            const type = args[2] || 'stdio';
+            const server = await mcp.addServer(name, type, { command: args[3], args: args.slice(4) });
+            console.log(colorize(`  ✓ MCP server "${name}" added (${type})`, 'success', theme));
+          } else if (args[0] === 'test' && args[1]) {
+            console.log(colorize(`  Testing MCP server "${args[1]}"...`, 'muted', theme));
+            const result = await mcp.testServer(args[1]);
+            console.log(colorize(`  ${result.status === 'ok' ? '✓' : '✗'} ${args[1]}: ${result.status}`, result.status === 'ok' ? 'success' : 'error', theme));
+          } else if (args[0] === 'remove' && args[1]) {
+            await mcp.removeServer(args[1]);
+            console.log(colorize(`  ✓ Removed`, 'success', theme));
+          } else if (args[0] === 'stats') {
+            const s = await mcp.stats();
+            console.log(colorize(`  Total: ${s.total} | Enabled: ${s.enabled} | Types: ${JSON.stringify(s.byType)}`, 'info', theme));
+          } else {
+            console.log(colorize('  Usage: mcp <list|add|test|remove|stats> [name] [type] [command]', 'warn', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  THEME SELECTOR
+        // ════════════════════════════════════════════════════
+        case '/theme':
+        case '/themes':
+          if (args[0] === 'list' || !args[0]) {
+            console.log('');
+            console.log(colorize('  ── Available Themes ────────────────────────────', 'muted', theme));
+            const themeNames = Object.keys(THEMES);
+            for (let i = 0; i < themeNames.length; i++) {
+              const t = THEMES[themeNames[i]];
+              const active = themeNames[i] === (config.theme || 'cyber') ? colorize(' ◀ ACTIVE', 'success', theme) : '';
+              const preview = `${t.primary}████${t.secondary}████${t.accent}████${t.reset}`;
+              const num = colorize(`[${String(i + 1).padStart(2)}]`, 'secondary', theme);
+              console.log(`  ${num} ${preview}  ${colorize(themeNames[i].padEnd(15), 'primary', theme)}${active}`);
+            }
+            console.log('');
+            console.log(colorize('  Usage: /theme <name> or /theme <number>', 'muted', theme));
+          } else {
+            const themeName = args[0];
+            const themeNames = Object.keys(THEMES);
+            let selected;
+            const num = parseInt(themeName);
+            if (!isNaN(num) && num >= 1 && num <= themeNames.length) {
+              selected = themeNames[num - 1];
+            } else if (THEMES[themeName]) {
+              selected = themeName;
+            }
+            if (selected) {
+              config.theme = selected;
+              saveConfig(config);
+              // Update live theme reference
+              const newTheme = THEMES[selected];
+              Object.assign(theme, newTheme);
+              console.log(colorize(`  ✓ Theme changed to "${selected}"`, 'success', theme));
+              // Flash effect
+              chatPanel.flash();
+            } else {
+              console.log(colorize(`  ✗ Unknown theme: "${themeName}"`, 'error', theme));
+            }
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  FONT SELECTOR
+        // ════════════════════════════════════════════════════
+        case '/font':
+        case 'font':
+          if (args[0] === 'list' || !args[0]) {
+            console.log('');
+            console.log(colorize('  ── Font Options ────────────────────────────────', 'muted', theme));
+            const fonts = [
+              { name: 'default', label: 'Default (system)', preview: 'AaBbCcDdEeFf' },
+              { name: 'mono', label: 'Monospace', preview: 'AaBbCcDdEeFf' },
+              { name: 'bold', label: 'Bold', preview: '\x1b[1mAaBbCcDdEeFf\x1b[0m' },
+              { name: 'dim', label: 'Dim', preview: '\x1b[2mAaBbCcDdEeFf\x1b[0m' },
+              { name: 'italic', label: 'Italic', preview: '\x1b[3mAaBbCcDdEeFf\x1b[0m' },
+            ];
+            for (let i = 0; i < fonts.length; i++) {
+              const f = fonts[i];
+              const active = f.name === (config.font || 'default') ? colorize(' ◀', 'success', theme) : '';
+              console.log(`  ${colorize(`[${i + 1}]`, 'secondary', theme)} ${f.label.padEnd(20)} ${f.preview}${active}`);
+            }
+            console.log('');
+            console.log(colorize('  ── Text Size ───────────────────────────────────', 'muted', theme));
+            const sizes = [10, 12, 14, 16, 18, 20, 24];
+            for (let i = 0; i < sizes.length; i++) {
+              const active = sizes[i] === (config.fontSize || 14) ? colorize(' ◀', 'success', theme) : '';
+              console.log(`  ${colorize(`[${i + 1}]`, 'secondary', theme)} ${sizes[i]}pt${active}`);
+            }
+            console.log('');
+            console.log(colorize('  Usage: /font <name> | /font size <number>', 'muted', theme));
+          } else if (args[0] === 'size' && args[1]) {
+            const size = parseInt(args[1]);
+            if (size >= 8 && size <= 32) {
+              config.fontSize = size;
+              saveConfig(config);
+              console.log(colorize(`  ✓ Font size set to ${size}pt`, 'success', theme));
+            } else {
+              console.log(colorize('  ✗ Size must be between 8 and 32', 'error', theme));
+            }
+          } else {
+            const fontName = args[0];
+            config.font = fontName;
+            saveConfig(config);
+            console.log(colorize(`  ✓ Font set to "${fontName}"`, 'success', theme));
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  SLASH COMMANDS LIST
+        // ════════════════════════════════════════════════════
+        case '/help':
+        case '/commands':
+          console.log('');
+          console.log(colorize('  ── / Slash Commands ────────────────────────────', 'muted', theme));
+          const slashCmds = [
+            { cmd: '/setup', desc: 'Run the interactive setup wizard' },
+            { cmd: '/config <get|set|list|reset>', desc: 'Manage configuration' },
+            { cmd: '/config secret <key> <val>', desc: 'Store encrypted API key' },
+            { cmd: '/gateway <test|test:all|list>', desc: 'API connection management' },
+            { cmd: '/gateway setkey <provider> <key>', desc: 'Set API key for provider' },
+            { cmd: '/mcp <list|add|test|remove>', desc: 'MCP server management' },
+            { cmd: '/theme [name|number]', desc: 'Change or list themes with preview' },
+            { cmd: '/font [name|size <n>]', desc: 'Change font or text size' },
+            { cmd: '/status', desc: 'Full system status dashboard' },
+            { cmd: '/engines', desc: 'Show all engine statuses' },
+            { cmd: '/clear', desc: 'Clear screen and redraw' },
+            { cmd: '/quit', desc: 'Exit UTHY AGENTIC OS' },
+          ];
+          for (const c of slashCmds) {
+            console.log(`  ${colorize(c.cmd.padEnd(35), 'secondary', theme)}${colorize(c.desc, 'muted', theme)}`);
+          }
+          console.log('');
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  SYSTEM STATUS DASHBOARD
+        // ════════════════════════════════════════════════════
+        case '/status':
+        case 'status':
+          console.log('');
+          console.log(colorize('  ── System Status ───────────────────────────────', 'muted', theme));
+          console.log(`  ${colorize('Version', 'primary', theme)}:     v${VERSION}`);
+          console.log(`  ${colorize('Platform', 'primary', theme)}:    ${process.platform} ${process.arch}`);
+          console.log(`  ${colorize('Node', 'primary', theme)}:       ${process.version}`);
+          console.log(`  ${colorize('Memory', 'primary', theme)}:     ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`);
+          console.log(`  ${colorize('Uptime', 'primary', theme)}:     ${Math.round(process.uptime())}s`);
+          console.log(`  ${colorize('Theme', 'primary', theme)}:      ${config.theme || 'cyber'}`);
+          console.log(`  ${colorize('Engines', 'primary', theme)}:    13 loaded`);
+          try {
+            const memStats = await memory.stats();
+            const goalStats = await goals.stats();
+            const skillStats = await skills.stats();
+            const mcpStats = await mcp.stats();
+            console.log(`  ${colorize('Memories', 'primary', theme)}:   ${memStats.total}`);
+            console.log(`  ${colorize('Goals', 'primary', theme)}:      ${goalStats.total}`);
+            console.log(`  ${colorize('Skills', 'primary', theme)}:     ${skillStats.total}`);
+            console.log(`  ${colorize('MCP Servers', 'primary', theme)}: ${mcpStats.total}`);
+          } catch (_) {}
+          console.log('');
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  ENGINES STATUS
+        // ════════════════════════════════════════════════════
+        case '/engines':
+          console.log('');
+          console.log(colorize('  ── Engine Status ───────────────────────────────', 'muted', theme));
+          const engineList = [
+            ['Config', configMgr], ['Memory', memory], ['Skills', skills],
+            ['Goals', goals], ['Models', models], ['Cron', cron],
+            ['Knowledge', knowledge], ['Sessions', sessions], ['WebSearch', websearch],
+            ['Watchdog', watchdog], ['Delegation', delegation], ['MCP', mcp],
+            ['Gateway', gateway],
+          ];
+          for (const [name, eng] of engineList) {
+            const icon = eng ? colorize('●', 'success', theme) : colorize('○', 'error', theme);
+            const methods = eng ? Object.getOwnPropertyNames(Object.getPrototypeOf(eng)).filter(m => m !== 'constructor').length : 0;
+            console.log(`  ${icon} ${name.padEnd(15)} ${methods} methods`);
+          }
+          console.log('');
           break;
 
         case 'hud':
