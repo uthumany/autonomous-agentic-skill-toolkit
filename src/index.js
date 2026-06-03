@@ -192,32 +192,184 @@ function startRepl() {
     }, 500);
   };
 
-  // Initialize engines
+  // ── 3D Animated Loading ──────────────────────────────────
+  const ESC_CHR = '\x1b';
+  const rgbStr = (r, g, b) => `${ESC_CHR}[38;2;${r};${g};${b}m`;
+  const resetStr = () => `${ESC_CHR}[0m`;
+  const boldStr = (s) => `${ESC_CHR}[1m${s}${ESC_CHR}[0m`;
+  const dimStr = (s) => `${ESC_CHR}[2m${s}${ESC_CHR}[0m`;
+
+  function lerpC(c1, c2, t) {
+    return [Math.round(c1[0]+(c2[0]-c1[0])*t), Math.round(c1[1]+(c2[1]-c1[1])*t), Math.round(c1[2]+(c2[2]-c1[2])*t)];
+  }
+
+  function gradBar(pct, width, phase) {
+    const filled = Math.round((pct / 100) * width);
+    const empty = width - filled;
+    const colors = [[0,255,255],[0,200,255],[100,100,255],[200,0,255],[255,0,200]];
+    let bar = '';
+    for (let i = 0; i < filled; i++) {
+      const t = (i / width + phase) % 1;
+      const ci = t * (colors.length - 1);
+      const idx = Math.floor(ci);
+      const frac = ci - idx;
+      const c = lerpC(colors[Math.min(idx, colors.length-1)], colors[Math.min(idx+1, colors.length-1)], frac);
+      bar += rgbStr(c[0], c[1], c[2]) + '█';
+    }
+    for (let i = 0; i < empty; i++) {
+      const pulse = Math.sin((i + phase * 20) * 0.5) > 0.3;
+      bar += pulse ? dimStr(rgbStr(60,60,80) + '░') : dimStr(rgbStr(40,40,60) + '░');
+    }
+    return bar + resetStr();
+  }
+
+  function gradText(text, phase) {
+    const colors = [[0,255,255],[0,200,255],[100,100,255],[200,0,255]];
+    let output = '';
+    for (let i = 0; i < text.length; i++) {
+      const t = (i / text.length + phase) % 1;
+      const ci = t * (colors.length - 1);
+      const idx = Math.floor(ci);
+      const frac = ci - idx;
+      const c = lerpC(colors[Math.min(idx, colors.length-1)], colors[Math.min(idx+1, colors.length-1)], frac);
+      output += rgbStr(c[0], c[1], c[2]) + text[i];
+    }
+    return output + resetStr();
+  }
+
+  function renderLoadingFrame(pct, statusText, engineName, phase, doneNames) {
+    const W = 64;
+    const inner = W - 4;
+    const lines = [];
+
+    // 3D top shadow
+    lines.push(dimStr(rgbStr(30,30,40)) + '▓'.repeat(W + 2) + resetStr());
+
+    // Top border with gradient
+    lines.push(' ' + gradText('╭─ ⟨ UTHY AGENTIC OS ⟩ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮', phase));
+
+    // Status line
+    const statusPad = Math.max(0, inner - statusText.length);
+    lines.push(dimStr(rgbStr(60,60,70)) + ' │' + resetStr() + ' ' + rgbStr(0,200,255) + statusText + ' '.repeat(statusPad) + dimStr(rgbStr(60,60,70)) + ' │ ▓' + resetStr());
+
+    // Progress bar
+    const pctStr = String(Math.round(pct)).padStart(3) + '%';
+    const barW = inner - 10;
+    const bar = gradBar(pct, barW, phase);
+    lines.push(dimStr(rgbStr(60,60,70)) + ' │ ' + resetStr() + bar + ' ' + boldStr(rgbStr(255,255,255) + pctStr + resetStr()) + dimStr(rgbStr(60,60,70)) + ' │ ▓' + resetStr());
+
+    // Engine checklist — 2 columns
+    const allEngines = ['Config','Memory','Skills','Goals','Models','Cron','Knowledge','Sessions','WebSearch','Watchdog','Delegation','MCP','Gateway'];
+    const mid = Math.ceil(allEngines.length / 2);
+    for (let row = 0; row < mid; row++) {
+      const left = allEngines[row];
+      const right = allEngines[row + mid];
+      const leftDone = doneNames.includes(left);
+      const rightDone = right ? doneNames.includes(right) : false;
+      const leftIcon = leftDone ? rgbStr(0,255,100) + '✓' + resetStr() : rgbStr(255,200,0) + '◌' + resetStr();
+      const rightIcon = rightDone ? rgbStr(0,255,100) + '✓' + resetStr() : (right ? rgbStr(255,200,0) + '◌' + resetStr() : ' ');
+      const leftText = leftDone ? rgbStr(0,200,150) + left.padEnd(12) + resetStr() : dimStr(rgbStr(100,100,120) + left.padEnd(12) + resetStr());
+      const rightText = right && rightDone ? rgbStr(0,200,150) + (right||'').padEnd(12) + resetStr() : dimStr(rgbStr(100,100,120) + (right||'').padEnd(12) + resetStr());
+      const checkLine = `  ${leftIcon} ${leftText}  ${rightIcon} ${rightText}`;
+      const checkPad = Math.max(0, inner - 52);
+      lines.push(dimStr(rgbStr(60,60,70)) + ' │' + resetStr() + checkLine + ' '.repeat(checkPad) + dimStr(rgbStr(60,60,70)) + ' │ ▓' + resetStr());
+    }
+
+    // Bottom border
+    lines.push(' ' + gradText('╰────────────────────────────────────────────────────────╯', (phase + 0.5) % 1));
+
+    // 3D bottom shadow
+    lines.push(dimStr(rgbStr(20,20,30)) + '▓'.repeat(W + 2) + resetStr());
+
+    return lines;
+  }
+
+  // Initialize engines with 3D animated loading
   const initEngines = async () => {
+    const engineSteps = [
+      { name: 'Config',     fn: async () => { await configMgr.init(); } },
+      { name: 'Memory',     fn: async () => { await memory.init(); } },
+      { name: 'Skills',     fn: async () => { await skills.init(); } },
+      { name: 'Goals',      fn: async () => { await goals.init(); } },
+      { name: 'Models',     fn: async () => { await models.init(); } },
+      { name: 'Cron',       fn: async () => { await cron.init(); } },
+      { name: 'Knowledge',  fn: async () => { await knowledge.init(); } },
+      { name: 'Sessions',   fn: async () => { await sessions.init(); } },
+      { name: 'WebSearch',  fn: async () => { await websearch.init(); } },
+      { name: 'Watchdog',   fn: async () => { await watchdog.init(); } },
+      { name: 'Delegation', fn: async () => { await delegation.init(); } },
+      { name: 'MCP',        fn: async () => { await mcp.init(); } },
+      { name: 'Gateway',    fn: async () => { await gateway.init(); } },
+    ];
+
+    const doneNames = [];
+    let loadPhase = 0;
+    let loadPct = 0;
+    let loadStatus = 'Initializing engines...';
+    let loadEngine = '';
+    const frameLines = 16; // approximate frame height
+
+    // 3D loading animation loop (100ms)
+    const loadTimer = setInterval(() => {
+      if (!isTTY) return;
+      loadPhase = (loadPhase + 0.03) % 1;
+      const frame = renderLoadingFrame(loadPct, loadStatus, loadEngine, loadPhase, doneNames);
+      // Move cursor to start of frame area
+      process.stdout.write(`\x1b[s`); // save
+      process.stdout.write(`\x1b[${frameLines}A`); // move up
+      for (const line of frame) {
+        process.stdout.write(`\x1b[2K` + line + '\n');
+      }
+      process.stdout.write(`\x1b[u`); // restore
+    }, 100);
+
+    // Print initial frame space
+    if (isTTY) {
+      for (let i = 0; i < frameLines; i++) console.log('');
+    }
+
     try {
-      await configMgr.init();
-      await memory.init();
-      await skills.init();
-      await goals.init();
-      await models.init();
-      await cron.init();
-      await knowledge.init();
-      await sessions.init();
-      await websearch.init();
-      await watchdog.init();
-      await delegation.init();
-      await mcp.init();
-      await gateway.init();
+      for (let i = 0; i < engineSteps.length; i++) {
+        const step = engineSteps[i];
+        loadPct = ((i) / engineSteps.length) * 100;
+        loadStatus = `Initializing ${step.name}...`;
+        loadEngine = step.name;
+
+        try {
+          await step.fn();
+          doneNames.push(step.name);
+        } catch (e) {
+          doneNames.push(step.name); // still mark as done (attempted)
+          console.log(colorize(`  ⚠ ${step.name}: ${e.message}`, 'warn', theme));
+        }
+      }
+
+      // Final: start session
       currentSession = await sessions.start('UTHY Session ' + new Date().toISOString().slice(0, 19));
       sessionStartTime = Date.now();
       watchdog.heartbeat('session-start');
       enginesReady = true;
+      loadPct = 100;
+      loadStatus = 'All systems online!';
+
+      // Wait a moment to show 100%
+      await new Promise(r => setTimeout(r, 800));
+
+      clearInterval(loadTimer);
+
+      if (isTTY) {
+        // Clear the loading frame area
+        process.stdout.write(`\x1b[${frameLines}A`);
+        for (let i = 0; i < frameLines; i++) process.stdout.write(`\x1b[2K\n`);
+        process.stdout.write(`\x1b[${frameLines}A`);
+      }
+
       console.log(colorize(`  ✓ All 13 engines initialized (${layout.mode} mode)`, 'success', theme));
       console.log('');
-      // Start unified animation (replaces 3 separate timers)
       startUnifiedAnimation();
       rl.prompt();
     } catch (e) {
+      clearInterval(loadTimer);
       enginesReady = true;
       console.log(colorize(`  ⚠ Engine init warning: ${e.message}`, 'warn', theme));
       console.log('');
