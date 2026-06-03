@@ -80,7 +80,7 @@ const { UpdateEngine, render3DFrame, gradientBar, gradientText, getSpinnerFrame 
 
 // ── Authentication & Boot Animation ───────────────────────
 const { AuthEngine } = require('./modules/auth');
-const { bootAndLogin, welcomeAnimation } = require('./modules/bootAnimation');
+const { bootAndLogin, welcomeAnimation, switchUserPrompt } = require('./modules/bootAnimation');
 
 // ════════════════════════════════════════════════════════════
 // CONFIG
@@ -516,7 +516,7 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
         'memory', 'skill', 'skills', 'goal', 'goals', 'model', 'models',
         'cron', 'kb', 'knowledge', 'session', 'sessions',
         'search', 'extract', 'watch', 'delegate', 'ask',
-        'whoami', 'login', 'logout', 'register', 'passwd', 'users',
+        'whoami', 'login', 'logout', 'register', 'passwd', 'users', 'su', 'adduser',
         'setup', 'config', 'gateway', 'mcp', 'font', 'update',
         '/setup', '/config', '/gateway', '/mcp', '/theme', '/themes',
         '/font', '/help', '/commands', '/status', '/engines', '/clear', '/quit',
@@ -1206,13 +1206,88 @@ function startReplInner(config, theme, layout, isTTY, auth, loggedInUser) {
         case '/auth':
           console.log('');
           console.log(colorize('  ── Authentication Commands ──', 'muted', theme));
-          console.log(`    ${colorize('whoami'.padEnd(20), 'secondary', theme)} Show current user`);
-          console.log(`    ${colorize('login <user> <pass>'.padEnd(20), 'secondary', theme)} Log in`);
-          console.log(`    ${colorize('register <user> <pass>'.padEnd(20), 'secondary', theme)} Create account`);
-          console.log(`    ${colorize('logout'.padEnd(20), 'secondary', theme)} Log out`);
-          console.log(`    ${colorize('passwd <old> <new>'.padEnd(20), 'secondary', theme)} Change password`);
-          console.log(`    ${colorize('users'.padEnd(20), 'secondary', theme)} List registered users`);
+          console.log(`    ${colorize('whoami'.padEnd(22), 'secondary', theme)} Show current user`);
+          console.log(`    ${colorize('login <user> <pass>'.padEnd(22), 'secondary', theme)} Log in`);
+          console.log(`    ${colorize('register <user> <pass>'.padEnd(22), 'secondary', theme)} Create account`);
+          console.log(`    ${colorize('su'.padEnd(22), 'secondary', theme)} Switch user (interactive)`);
+          console.log(`    ${colorize('adduser <user> <pass>'.padEnd(22), 'secondary', theme)} Create account + switch`);
+          console.log(`    ${colorize('logout'.padEnd(22), 'secondary', theme)} Log out`);
+          console.log(`    ${colorize('passwd <old> <new>'.padEnd(22), 'secondary', theme)} Change password`);
+          console.log(`    ${colorize('users'.padEnd(22), 'secondary', theme)} List registered users`);
           console.log('');
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  SWITCH USER
+        // ════════════════════════════════════════════════════
+        case 'su':
+          {
+            const users = auth.listUsers();
+            if (users.length === 0) {
+              console.log(colorize('  No registered users. Use "register <user> <pass>" first.', 'warn', theme));
+              break;
+            }
+
+            // If password provided: su <user> <password>
+            if (args[0] && args[1]) {
+              const result = auth.authenticate(args[0], args[1]);
+              if (result.success) {
+                loggedInUser = result.username;
+                config.user = config.user || {};
+                config.user.name = loggedInUser;
+                saveConfig(config);
+                console.log(colorize(`  ✓ Switched to ${result.username}`, 'success', theme));
+              } else if (result.error === 'user_not_found') {
+                console.log(colorize(`  ✗ User "${args[0]}" not found`, 'error', theme));
+              } else {
+                console.log(colorize(`  ✗ ${result.error}`, 'error', theme));
+              }
+              break;
+            }
+
+            // Interactive user picker (TTY only)
+            if (isTTY) {
+              const result = await switchUserPrompt(auth, loggedInUser, isTTY);
+              if (result.success && result.action === 'switch') {
+                // Need password — prompt inline
+                console.log(colorize(`  Enter password for ${result.username}:`, 'info', theme));
+                // For simplicity, use login command
+                console.log(colorize(`  Tip: use "su ${result.username} <password>" to switch directly`, 'muted', theme));
+              } else if (result.success && result.action === 'create') {
+                console.log(colorize('  Use "register <user> <pass>" to create a new account', 'info', theme));
+              } else if (result.error === 'cancelled') {
+                console.log(colorize('  Cancelled.', 'muted', theme));
+              } else if (result.error) {
+                console.log(colorize(`  ${result.error}`, 'muted', theme));
+              }
+            } else {
+              console.log(colorize('  Usage: su <username> <password>', 'warn', theme));
+            }
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
+        //  ADD USER + SWITCH
+        // ════════════════════════════════════════════════════
+        case 'adduser':
+          {
+            const username = args[0];
+            const password = args[1];
+            if (!username || !password) {
+              console.log(colorize('  Usage: adduser <username> <password>', 'warn', theme));
+              break;
+            }
+            const result = auth.register(username, password);
+            if (result.success) {
+              loggedInUser = result.username;
+              config.user = config.user || {};
+              config.user.name = loggedInUser;
+              saveConfig(config);
+              console.log(colorize(`  ✓ Account "${result.username}" created & logged in`, 'success', theme));
+            } else {
+              console.log(colorize(`  ✗ ${result.error}`, 'error', theme));
+            }
+          }
           break;
 
         // ════════════════════════════════════════════════════

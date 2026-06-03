@@ -540,13 +540,409 @@ async function bootAndLogin(authEngine, isTTY) {
     return { username: session.username, newUser: false };
   }
 
-  // Phase 3: Login prompt
+  // Phase 3: First-time setup — no users exist, create account
+  const users = authEngine.listUsers();
+  if (users.length === 0) {
+    const result = await firstTimeSetup(authEngine, isTTY);
+    await welcomeAnimation(result.username, true, isTTY);
+    return result;
+  }
+
+  // Phase 4: Login prompt (existing users)
   const loginResult = await loginPrompt(authEngine, isTTY);
 
-  // Phase 4: Welcome animation
+  // Phase 5: Welcome animation
   await welcomeAnimation(loginResult.username, loginResult.newUser, isTTY);
 
   return loginResult;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FIRST-TIME SETUP (no users exist)
+// ═══════════════════════════════════════════════════════════
+
+async function firstTimeSetup(authEngine, isTTY) {
+  if (!isTTY) return { username: 'admin', newUser: true };
+
+  const { cols, rows } = termSize();
+  const W = Math.min(54, cols - 4);
+  const startRow = Math.max(2, Math.floor(rows / 2) - 8);
+  const startCol = Math.max(1, Math.floor((cols - W) / 2));
+
+  function drawSetup(username, password, confirm, error, step) {
+    let r = startRow;
+
+    // Title
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 255, 200) + bold('✦ FIRST TIME SETUP ✦') + reset(), cols));
+
+    // Subtitle
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(dim(rgb(150, 150, 180) + 'No accounts found. Create your admin account.' + reset()), cols));
+
+    // Top border
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 200, 150) + '╭' + '─'.repeat(W - 2) + '╮' + reset(), cols));
+
+    // Step indicator
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    const stepText = step === 'username' ? '  STEP 1/2: Choose username' : '  STEP 2/2: Set password';
+    const stepPad = Math.max(0, W - 4 - stepText.length);
+    process.stdout.write(center(
+      rgb(0, 200, 150) + '│' + reset() +
+      bold(rgb(255, 255, 255) + stepText + reset()) +
+      ' '.repeat(stepPad) +
+      rgb(0, 200, 150) + '│' + reset(), cols));
+
+    // Divider
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 200, 150) + '│' + reset() + dim(rgb(60, 60, 80) + '┈'.repeat(W - 2) + reset()) + rgb(0, 200, 150) + '│' + reset(), cols));
+
+    // Username field
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    const uLabel = '  username: ';
+    const uVal = username || '';
+    const uPad = Math.max(0, W - 2 - uLabel.length - uVal.length - 1);
+    const uActive = step === 'username';
+    process.stdout.write(center(
+      rgb(0, 200, 150) + '│' + reset() +
+      rgb(0, 200, 255) + uLabel + reset() +
+      (uActive ? bold(rgb(255, 255, 255) + uVal + reset()) : rgb(180, 180, 200) + uVal + reset()) +
+      (uActive && !username ? dim(rgb(100, 100, 120) + '_' + reset()) : '') +
+      ' '.repeat(uPad) +
+      rgb(0, 200, 150) + '│' + reset(), cols));
+
+    // Password field
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    const pLabel = '  password: ';
+    const pDisplay = password ? '*'.repeat(password.length) : '';
+    const pPad = Math.max(0, W - 2 - pLabel.length - pDisplay.length - 1);
+    const pActive = step === 'password';
+    process.stdout.write(center(
+      rgb(0, 200, 150) + '│' + reset() +
+      rgb(0, 200, 255) + pLabel + reset() +
+      (pActive ? bold(rgb(255, 255, 255) + pDisplay + reset()) : rgb(180, 180, 200) + pDisplay + reset()) +
+      (pActive && !password ? dim(rgb(100, 100, 120) + '_' + reset()) : '') +
+      ' '.repeat(pPad) +
+      rgb(0, 200, 150) + '│' + reset(), cols));
+
+    // Confirm field (only in password step)
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    if (step === 'password') {
+      const cLabel = '  confirm:  ';
+      const cDisplay = confirm ? '*'.repeat(confirm.length) : '';
+      const cPad = Math.max(0, W - 2 - cLabel.length - cDisplay.length - 1);
+      process.stdout.write(center(
+        rgb(0, 200, 150) + '│' + reset() +
+        rgb(0, 200, 255) + cLabel + reset() +
+        bold(rgb(255, 255, 255) + cDisplay + reset()) +
+        (!confirm ? dim(rgb(100, 100, 120) + '_' + reset()) : '') +
+        ' '.repeat(cPad) +
+        rgb(0, 200, 150) + '│' + reset(), cols));
+    } else {
+      process.stdout.write(center(rgb(0, 200, 150) + '│' + reset() + ' '.repeat(W - 2) + rgb(0, 200, 150) + '│' + reset(), cols));
+    }
+
+    // Empty
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 200, 150) + '│' + reset() + ' '.repeat(W - 2) + rgb(0, 200, 150) + '│' + reset(), cols));
+
+    // Error / hint
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    if (error) {
+      const errText = `  ✗ ${error}`;
+      const errPad = Math.max(0, W - 2 - errText.length);
+      process.stdout.write(center(
+        rgb(0, 200, 150) + '│' + reset() +
+        rgb(255, 80, 80) + errText + reset() +
+        ' '.repeat(errPad) +
+        rgb(0, 200, 150) + '│' + reset(), cols));
+    } else {
+      const hint = step === 'username'
+        ? '  Choose a username (letters, numbers, dots, dashes)'
+        : '  Set a password (min 4 characters)';
+      const hintPad = Math.max(0, W - 2 - hint.length);
+      process.stdout.write(center(
+        rgb(0, 200, 150) + '│' + reset() +
+        dim(rgb(100, 150, 130) + hint + reset()) +
+        ' '.repeat(hintPad) +
+        rgb(0, 200, 150) + '│' + reset(), cols));
+    }
+
+    // Bottom border
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 200, 150) + '╰' + '─'.repeat(W - 2) + '╯' + reset(), cols));
+
+    // Instructions
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(dim(rgb(100, 100, 120) + 'Enter to continue · Ctrl+C to exit' + reset()), cols));
+
+    return r;
+  }
+
+  // Interactive setup loop
+  return new Promise((resolve) => {
+    let username = '';
+    let password = '';
+    let confirm = '';
+    let error = '';
+    let step = 'username';
+
+    process.stdout.write(clear());
+    drawSetup('', '', '', '', step);
+
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+
+    function onData(ch) {
+      const code = ch.charCodeAt(0);
+
+      // Ctrl+C
+      if (code === 3) {
+        cleanup();
+        process.stdout.write(clear() + showCursor());
+        process.exit(0);
+      }
+
+      // Enter
+      if (code === 13) {
+        if (step === 'username') {
+          if (username.length < 2) {
+            error = 'Username must be at least 2 characters';
+            drawSetup(username, password, confirm, error, step);
+            return;
+          }
+          if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+            error = 'Only letters, numbers, dots, dashes, underscores';
+            drawSetup(username, password, confirm, error, step);
+            return;
+          }
+          step = 'password';
+          error = '';
+          drawSetup(username, password, confirm, '', step);
+          return;
+        }
+
+        if (step === 'password') {
+          if (password.length < 4) {
+            error = 'Password must be at least 4 characters';
+            drawSetup(username, password, confirm, error, step);
+            return;
+          }
+          if (password !== confirm) {
+            error = 'Passwords do not match';
+            confirm = '';
+            drawSetup(username, password, confirm, error, step);
+            return;
+          }
+
+          // Register
+          const result = authEngine.register(username, password);
+          if (result.success) {
+            cleanup();
+            resolve({ username: result.username, newUser: true });
+            return;
+          }
+          error = result.error;
+          drawSetup(username, password, confirm, error, step);
+          return;
+        }
+        return;
+      }
+
+      // Backspace
+      if (code === 127 || code === 8) {
+        if (step === 'username') username = username.slice(0, -1);
+        else if (step === 'password' && confirm.length > 0) confirm = confirm.slice(0, -1);
+        else if (step === 'password') password = password.slice(0, -1);
+        error = '';
+        drawSetup(username, password, confirm, '', step);
+        return;
+      }
+
+      // Regular character
+      if (code >= 32 && code <= 126) {
+        if (step === 'username') username += ch;
+        else if (step === 'password' && password.length < 4) password += ch;
+        else if (step === 'password') confirm += ch;
+        error = '';
+        drawSetup(username, password, confirm, '', step);
+      }
+    }
+
+    function cleanup() {
+      process.stdin.removeListener('data', onData);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      process.stdin.pause();
+    }
+
+    process.stdin.on('data', onData);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SWITCH USER PROMPT
+// ═══════════════════════════════════════════════════════════
+
+async function switchUserPrompt(authEngine, currentUser, isTTY) {
+  if (!isTTY) return { success: false, error: 'Not available in piped mode' };
+
+  const users = authEngine.listUsers();
+  const { cols, rows } = termSize();
+  const W = Math.min(44, cols - 4);
+  const startRow = Math.max(2, Math.floor(rows / 2) - Math.floor(users.length / 2) - 4);
+  const startCol = Math.max(1, Math.floor((cols - W) / 2));
+
+  let selectedIdx = users.findIndex(u => u.username === currentUser);
+  if (selectedIdx < 0) selectedIdx = 0;
+
+  function drawUserList() {
+    let r = startRow;
+
+    // Title
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 200, 255) + bold('── SWITCH USER ──') + reset(), cols));
+
+    // Top border
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 150, 200) + '╭' + '─'.repeat(W - 2) + '╮' + reset(), cols));
+
+    // User list
+    for (let i = 0; i < users.length; i++) {
+      process.stdout.write(move(r++, startCol));
+      process.stdout.write(clearLine());
+      const isSelected = i === selectedIdx;
+      const isCurrent = users[i].username === currentUser;
+      const arrow = isSelected ? rgb(0, 255, 200) + ' ▸ ' + reset() : '   ';
+      const name = isSelected
+        ? bold(rgb(255, 255, 255) + users[i].username + reset())
+        : rgb(180, 180, 200) + users[i].username + reset();
+      const tag = isCurrent ? rgb(0, 200, 150) + ' (current)' + reset() : '';
+      const line = `${arrow}${name}${tag}`;
+      const linePad = Math.max(0, W - 4 - users[i].username.length - (isCurrent ? 10 : 0) - 3);
+      process.stdout.write(center(
+        rgb(0, 150, 200) + '│' + reset() +
+        line + ' '.repeat(linePad) +
+        rgb(0, 150, 200) + '│' + reset(), cols));
+    }
+
+    // Add new user option
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    const addSelected = selectedIdx === users.length;
+    const addArrow = addSelected ? rgb(0, 255, 200) + ' ▸ ' + reset() : '   ';
+    const addText = addSelected
+      ? bold(rgb(255, 200, 0) + '+ Create new account' + reset())
+      : rgb(150, 150, 100) + '+ Create new account' + reset();
+    const addPad = Math.max(0, W - 4 - 22 - 3);
+    process.stdout.write(center(
+      rgb(0, 150, 200) + '│' + reset() +
+      `${addArrow}${addText}` + ' '.repeat(addPad) +
+      rgb(0, 150, 200) + '│' + reset(), cols));
+
+    // Empty
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 150, 200) + '│' + reset() + ' '.repeat(W - 2) + rgb(0, 150, 200) + '│' + reset(), cols));
+
+    // Bottom border
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(rgb(0, 150, 200) + '╰' + '─'.repeat(W - 2) + '╯' + reset(), cols));
+
+    // Instructions
+    process.stdout.write(move(r++, startCol));
+    process.stdout.write(clearLine());
+    process.stdout.write(center(dim(rgb(100, 100, 120) + '↑↓ Navigate · Enter to select · Esc to cancel' + reset()), cols));
+  }
+
+  return new Promise((resolve) => {
+    process.stdout.write(clear());
+    drawUserList();
+
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+
+    function onData(ch) {
+      const code = ch.charCodeAt(0);
+
+      // Escape — cancel
+      if (code === 27) {
+        cleanup();
+        resolve({ success: false, error: 'cancelled' });
+        return;
+      }
+
+      // Up arrow
+      if (ch === '\x1b[A') {
+        selectedIdx = Math.max(0, selectedIdx - 1);
+        drawUserList();
+        return;
+      }
+
+      // Down arrow
+      if (ch === '\x1b[B') {
+        selectedIdx = Math.min(users.length, selectedIdx + 1);
+        drawUserList();
+        return;
+      }
+
+      // Enter
+      if (code === 13) {
+        cleanup();
+
+        if (selectedIdx === users.length) {
+          // Create new account — return special signal
+          resolve({ success: true, action: 'create' });
+          return;
+        }
+
+        const selected = users[selectedIdx];
+        if (selected.username === currentUser) {
+          resolve({ success: false, error: 'Already logged in as ' + currentUser });
+          return;
+        }
+
+        resolve({ success: true, action: 'switch', username: selected.username });
+        return;
+      }
+
+      // Number keys for quick select
+      if (code >= 49 && code <= 57) { // 1-9
+        const idx = code - 49;
+        if (idx < users.length) {
+          cleanup();
+          const selected = users[idx];
+          resolve({ success: true, action: 'switch', username: selected.username });
+          return;
+        }
+      }
+    }
+
+    function cleanup() {
+      process.stdin.removeListener('data', onData);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      process.stdin.pause();
+    }
+
+    process.stdin.on('data', onData);
+  });
 }
 
 module.exports = {
@@ -555,4 +951,6 @@ module.exports = {
   welcomeAnimation,
   shakeError,
   bootAndLogin,
+  firstTimeSetup,
+  switchUserPrompt,
 };
