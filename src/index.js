@@ -63,6 +63,9 @@ const { WebSearchEngine } = require('./modules/websearch');
 const { WatchdogEngine } = require('./modules/watchdog');
 const { DelegationEngine } = require('./modules/delegation');
 
+// ── Chat Panel (HUD-framed input) ─────────────────────────
+const { ChatPanel } = require('./modules/chatPanel');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
@@ -151,6 +154,9 @@ function startRepl() {
       enginesReady = true;
       console.log(colorize('  ✓ All 10 engines initialized', 'success', theme));
       console.log('');
+      // Start the Chat Panel animation (HUD-framed input)
+      chatPanel.startAnimation(120);
+      chatPanel.setStatus('All systems online');
       rl.prompt();
     } catch (e) {
       enginesReady = true; // still set to true so commands can be attempted
@@ -165,10 +171,13 @@ function startRepl() {
   // Start the real-time HUD overlay (top-right, clock ticks every second)
   const stopHud = startHudRefresh(theme, 1000);
 
+  // ── Create Chat Panel (HUD-framed input at bottom) ─────
+  const chatPanel = new ChatPanel({ theme });
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: `${colorize('uthy', 'secondary', theme)}${colorize('>', 'primary', theme)} `,
+    prompt: chatPanel.getPromptString(),
     historySize: config.historySize || 100,
     completer: (line) => {
       const cmds = [
@@ -205,6 +214,20 @@ function startRepl() {
 
     const [cmd, ...args] = input.split(/\s+/);
 
+    // Update chat panel status
+    chatPanel.setStatus(`Executing: ${cmd}`);
+    chatPanel.flash();
+
+    // Record message in session
+    if (currentSession && sessions && enginesReady) {
+      try { await sessions.addMessage(currentSession.id, 'user', input); } catch (_) {}
+    }
+
+    // Record heartbeat
+    if (watchdog && enginesReady) {
+      try { watchdog.heartbeat(`cmd:${cmd}`); } catch (_) {}
+    }
+
     try {
       switch (cmd) {
         case 'help':
@@ -214,6 +237,7 @@ function startRepl() {
         case 'quit':
         case 'exit':
           if (stopHud) stopHud();
+          chatPanel.stopAnimation();
           // End session and stop engines
           try {
             if (currentSession) await sessions.end(currentSession.id);
@@ -720,16 +744,22 @@ function startRepl() {
         default:
           console.log(colorize(`  Unknown command: "${cmd}"`, 'error', theme));
           console.log(colorize('  Type "help" to see available commands', 'muted', theme));
+          chatPanel.errorFlash();
       }
     } catch (err) {
       console.log(colorize(`  Error: ${err.message}`, 'error', theme));
+      chatPanel.errorFlash();
     }
 
+    // Reset status and show ready
+    chatPanel.setStatus('Ready');
+    chatPanel.setAttachments([]);
     rl.prompt();
   });
 
   rl.on('close', async () => {
     if (stopHud) stopHud();
+    chatPanel.stopAnimation();
     try {
       if (currentSession) await sessions.end(currentSession.id);
       if (cron.stop) cron.stop();
