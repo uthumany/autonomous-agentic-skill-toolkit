@@ -184,7 +184,8 @@ function startRepl() {
 
       // Get memory count if ready
       if (enginesReady && memory.stats) {
-        memory.stats().then(s => { state.memoryCount = s.total || 0; }).catch(() => {});
+        const ms = memory.stats();
+        state.memoryCount = ms.total || 0;
       }
 
       // Render the layout frame
