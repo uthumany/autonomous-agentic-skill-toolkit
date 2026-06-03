@@ -75,6 +75,9 @@ const { Animations } = require('./modules/animations');
 // ── TUI Layout Manager (responsive zones, unified animation) ─
 const { LayoutManager } = require('./modules/tui');
 
+// ── Update Engine (self-update with animated progress) ────
+const { UpdateEngine, render3DFrame, gradientBar, gradientText, getSpinnerFrame } = require('./modules/update');
+
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
@@ -298,10 +301,10 @@ function startRepl() {
         'memory', 'skill', 'skills', 'goal', 'goals', 'model', 'models',
         'cron', 'kb', 'knowledge', 'session', 'sessions',
         'search', 'extract', 'watch', 'delegate', 'ask',
-        'setup', 'config', 'gateway', 'mcp', 'font',
+        'setup', 'config', 'gateway', 'mcp', 'font', 'update',
         '/setup', '/config', '/gateway', '/mcp', '/theme', '/themes',
         '/font', '/help', '/commands', '/status', '/engines', '/clear', '/quit',
-        '/layout', '/chat', 'layout',
+        '/layout', '/chat', 'layout', '/update',
       ];
       const hits = cmds.filter(c => c.startsWith(line));
 
@@ -894,6 +897,121 @@ function startRepl() {
           break;
 
         // ════════════════════════════════════════════════════
+        //  SELF-UPDATE WITH 3D ANIMATED PROGRESS
+        // ════════════════════════════════════════════════════
+        case 'update':
+        case '/update':
+          {
+            const updater = new UpdateEngine(VERSION);
+
+            // Phase 1: Check for updates with spinner
+            console.log('');
+            const spinFrames = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+            let spinIdx = 0;
+            const spinTimer = setInterval(() => {
+              process.stdout.write(`\r  ${rgb(0,255,255)}${spinFrames[spinIdx++ % spinFrames.length]}${'\x1b[0m'} Checking npm registry...`);
+            }, 80);
+
+            let updateInfo;
+            try {
+              updateInfo = await updater.checkForUpdate();
+            } catch(e) {
+              clearInterval(spinTimer);
+              process.stdout.write('\r' + clearLine());
+              console.log(colorize(`  ✗ Update check failed: ${e.message}`, 'error', theme));
+              break;
+            }
+            clearInterval(spinTimer);
+            process.stdout.write('\r' + clearLine());
+
+            if (updateInfo.error) {
+              console.log(colorize(`  ✗ Cannot reach npm registry: ${updateInfo.error}`, 'error', theme));
+              break;
+            }
+
+            if (!updateInfo.hasUpdate) {
+              // Already up to date — show status
+              console.log(colorize(`  ✓ You're on the latest version!`, 'success', theme));
+              console.log('');
+              console.log(colorize(`    Current:  v${updateInfo.current}`, 'muted', theme));
+              console.log(colorize(`    Latest:   v${updateInfo.latest}`, 'muted', theme));
+              console.log(colorize(`    Package:  ${updateInfo.name}`, 'muted', theme));
+              console.log('');
+              break;
+            }
+
+            // Phase 2: Update available — show 3D animated progress
+            console.log(colorize(`  ⬆ Update available: v${updateInfo.current} → v${updateInfo.latest}`, 'info', theme));
+            console.log('');
+
+            let animPhase = 0;
+            let currentProgress = 0;
+            let currentStatus = 'Preparing update...';
+            const W = 64;
+
+            // 3D animation loop — renders 6-line frame every 100ms
+            const renderFrame = () => {
+              const frame = render3DFrame('UTHY UPDATE', currentProgress, currentStatus, animPhase, W);
+              // Move cursor up to overwrite previous frame
+              if (currentProgress > 0) {
+                process.stdout.write(moveCursor(process.stdout.rows - 10, 1));
+              }
+              for (const line of frame) {
+                process.stdout.write(clearLine() + line + '\n');
+              }
+              animPhase = (animPhase + 0.03) % 1;
+            };
+
+            // Initial frame render
+            renderFrame();
+            const frameTimer = setInterval(renderFrame, 100);
+
+            // Phase 3: Run the actual npm update
+            try {
+              const result = await updater.runUpdate((pct, msg) => {
+                currentProgress = pct;
+                currentStatus = msg;
+              });
+
+              clearInterval(frameTimer);
+              renderFrame(); // final frame at 100%
+
+              // Success animation — pulse effect
+              console.log('');
+              const checkmark = `${rgb(0,255,100)}${'\x1b[1m'}✓ UPDATE SUCCESSFUL${'\x1b[0m'}`;
+              console.log(`  ${checkmark}`);
+              console.log('');
+              console.log(colorize(`    Previous: v${updateInfo.current}`, 'muted', theme));
+              console.log(colorize(`    Now:      v${updateInfo.latest}`, 'muted', theme));
+              console.log('');
+              console.log(colorize('  💡 Restart your terminal or run "uthy" to use the new version.', 'info', theme));
+              console.log('');
+
+              // Check changelog
+              const changes = await updater.getChangelog(updateInfo.current, updateInfo.latest);
+              if (changes.length > 0) {
+                console.log(colorize('  ── Versions Installed ──', 'muted', theme));
+                for (const c of changes) {
+                  console.log(colorize(`    v${c.version}`, 'secondary', theme));
+                }
+                console.log('');
+              }
+
+            } catch(e) {
+              clearInterval(frameTimer);
+              // Error frame
+              currentProgress = currentProgress;
+              currentStatus = 'Update failed!';
+              renderFrame();
+              console.log('');
+              console.log(colorize(`  ✗ Update failed: ${e.message}`, 'error', theme));
+              console.log(colorize('  💡 Try manually: npm install -g uthy-agentic-os', 'muted', theme));
+              console.log('');
+            }
+          }
+          break;
+
+        // ════════════════════════════════════════════════════
         //  CONFIG MANAGEMENT
         // ════════════════════════════════════════════════════
         case 'config':
@@ -1103,6 +1221,7 @@ function startRepl() {
             { cmd: '/font [name|size <n>]', desc: 'Change font or text size' },
             { cmd: '/layout [mode]', desc: 'Change layout (wide/compact/minimal/zen)' },
             { cmd: '/chat', desc: 'Toggle chat input panel on/off' },
+            { cmd: '/update', desc: 'Check for updates and self-update' },
             { cmd: '/status', desc: 'Full system status dashboard' },
             { cmd: '/engines', desc: 'Show all engine statuses' },
             { cmd: '/clear', desc: 'Clear screen and redraw' },
@@ -1414,6 +1533,7 @@ function showHelp(theme, section) {
       { cmd: 'about', desc: 'About UTHY AGENTIC OS' },
       { cmd: 'clear', desc: 'Clear screen' },
       { cmd: 'quit / exit / q', desc: 'Exit' },
+      { cmd: 'update / /update', desc: 'Self-update from npm' },
       { cmd: '?', desc: 'Show this help' },
     ]},
   ];
