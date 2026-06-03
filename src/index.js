@@ -76,7 +76,7 @@ const { Animations } = require('./modules/animations');
 // CONFIG
 // ════════════════════════════════════════════════════════════
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const CONFIG_DIR = path.join(os.homedir(), '.uthy');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const HISTORY_FILE = path.join(CONFIG_DIR, 'history');
