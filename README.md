@@ -1,334 +1,364 @@
-# UTHY AGENTIC OS
+# UTHY OS v2.0
 
-> An autonomous agentic operating system for your terminal — cyberpunk HUD overlay, 25 themes, chat panel with file upload, persistent memory, knowledge base, and 10 core engines.
+### Terminal-Native AI Operating System
 
-[![npm](https://img.shields.io/npm/v/uthy-agentic-os.svg)](https://www.npmjs.com/package/uthy-agentic-os)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)](https://nodejs.org)
+```
+██╗   ██╗████████╗██╗  ██╗██╗   ██╗     ██████╗ ███████╗
+██║   ██║╚══██╔══╝██║  ██║╚██╗ ██╔╝     ██╔══██╗██╔════╝
+██║   ██║   ██║   ███████║ ╚████╔╝█████╗██║  ██║███████╗
+██║   ██║   ██║   ██╔══██║  ╚██╔╝ ╚════╝██║  ██║╚════██║
+╚██████╔╝   ██║   ██║  ██║   ██║        ██████╔╝███████║
+ ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ╚═╝        ╚═════╝ ╚══════╝
+```
+
+A futuristic, cyberpunk-inspired terminal AI operating system with 300+ model providers, 25 themes, skill engine, multi-user auth, encrypted storage, and full customization.
+
+**Free. Open-source. Local-first. Provider-agnostic.**
 
 ---
 
-## Installation
+## ✨ Features
 
-### From npm (recommended)
+- 🖥️ **Terminal-Native REPL** — Interactive shell with autocomplete, history, and slash commands
+- 🤖 **300+ AI Providers** — OpenAI, Anthropic, Google, Ollama, OpenRouter, Groq, Together, DeepSeek, Mistral, Cohere, Fireworks, Perplexity, xAI, Cerebras, SambaNova
+- 🎨 **25 Cyberpunk Themes** — Live-switching themes (Cyber, Matrix, Fire, Ocean, Neon, Obsidian, and 19 more)
+- ⚡ **3D Boot Animation** — XP-style animated boot with engine checklist and gradient progress bar
+- 🔐 **Multi-User Auth** — Linux-style login with SHA-256 hashed passwords, per-user isolation
+- 💾 **Encrypted Storage** — AES-256-GCM vault for API keys, per-user data, memory, and config
+- ⚙️ **Skill Engine** — 14 built-in skills, auto-generation, sandboxing, versioning
+- 📡 **Event-Driven Kernel** — Command router, module lifecycle, process manager
+- 🧠 **Persistent Memory** — Per-user memory that survives across sessions
+- 🎯 **Goal Tracking** — Set and track goals
+- ⏰ **Cron Jobs** — Schedule recurring tasks
+- 📚 **Knowledge Engine** — Semantic search across docs and memory
+- 🔍 **Web Search** — Built-in web search capability
+- 🐕 **Watchdog** — System health monitoring
+- 🤝 **Delegation** — Task delegation to sub-agents
+- 📋 **Session Management** — Track and replay sessions
+- 🌐 **Gateway** — API gateway for external integrations
+- 🔌 **MCP** — Model Context Protocol support
+- 📊 **Rich Terminal UI** — Boxes, tables, charts, gauges, spinners, progress bars
+- 🎬 **Animations** — Wave, glitch, gradient, particle effects
+- 📦 **Import/Export** — Backup and restore user profiles
 
+---
+
+## 🚀 Installation
+
+### npm (recommended)
 ```bash
-npm install -g uthy-agentic-os
+npm install -g uthy-os
 ```
 
-### From GitHub
+### pnpm
+```bash
+pnpm add -g uthy-os
+```
 
+### bun
+```bash
+bun add -g uthy-os
+```
+
+### From source
 ```bash
 git clone https://github.com/uthumany/uthy-agentic-os.git
 cd uthy-agentic-os
-npm install -g .
+npm install
+npm link
 ```
 
-### Verify
-
+### Docker
 ```bash
-uthy --version   # 1.1.0
-uthy --help      # Show all commands
-uthy             # Launch interactive REPL
+docker run -it uthuman/uthy-os
 ```
 
 ---
 
-## Quick Start
+## 🎮 Usage
 
+### Interactive REPL
 ```bash
-# Launch interactive REPL with cyberpunk HUD
 uthy
+```
 
-# Run a web test
-uthy test:web https://example.com
+### Direct Commands
+```bash
+uthy info           # System information
+uthy providers      # List AI providers
+uthy skills         # List skills
+uthy themes         # List themes
+uthy theme cyber    # Set theme
+uthy shell          # Force REPL mode
+```
 
-# Store a memory
-uthy memory add "I prefer dark themes"
+### Slash Commands (inside REPL)
+```
+/help               # Show all commands
+/status             # System status
+/version            # Show version
+/theme <name>       # Change theme
+/theme list         # List all themes
+/providers          # List AI providers
+/providers models   # List all models
+/providers set-key openai sk-...  # Set API key
+/chat <message>     # Chat with AI
+/skills             # List skills
+/skills search <q>  # Search skills
+/skills generate <desc>  # Auto-generate skill
+/memory save <k> <v>    # Save to memory
+/memory get <k>         # Recall from memory
+/config list        # Show config
+/config set <k> <v>  # Set config
+/history            # Command history
+/profile export     # Export user profile
+/profile import <path>  # Import profile
+/system info        # System details
+/clear              # Clear screen
+/quit               # Exit
+```
 
-# Search the web
-uthy search "nodejs best practices"
-
-# Index your project for semantic search
-uthy kb index ./src
-
-# Schedule a recurring task
-uthy cron add 1h "npm test"
-
-# View goal kanban board
-uthy goal kanban
+### Natural Language
+Just type naturally — it routes to your configured AI provider:
+```
+❯ Write a Python script to sort a CSV file
+❯ Explain how neural networks work
+❯ Create a Dockerfile for a Node.js app
 ```
 
 ---
 
-## Features
+## 🤖 AI Providers
 
-### 🎨 Cyberpunk HUD Overlay
-- Real-time holographic console at top-right corner
-- Seven-segment flip clock with live tick
-- Social links with floating UI markers
-- Scanline dividers and corner bracket framing
-- No rigid box borders — sci-fi cockpit aesthetic
+Set API keys via environment variables or the REPL:
 
-### 🖌️ 25 Terminal Themes
-`cyber` · `matrix` · `fire` · `ocean` · `neon` · `obsidian` · `neonblast` · `forest` · `amber` · `polar` · `rusted` · `cobalt` · `sepia` · `midnight` · `solarflare` · `slate` · `cherry` · `glacial` · `ember` · `lavender` · `moss` · `crimson` · `desert` · `steel` · `twilight`
+```bash
+# Environment variables
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+export GOOGLE_API_KEY=AI...
+export OPENROUTER_API_KEY=sk-or-...
+export GROQ_API_KEY=gsk_...
+export TOGETHER_API_KEY=...
+export DEEPSEEK_API_KEY=...
+export MISTRAL_API_KEY=...
+export COHERE_API_KEY=...
+export FIREWORKS_API_KEY=...
+export PERPLEXITY_API_KEY=pplx-...
+export XAI_API_KEY=xai-...
+export CEREBRAS_API_KEY=...
+export SAMBANOVA_API_KEY=...
 
-### 💬 Chat Panel with File Upload
-- Multi-line text input with `@filepath` syntax
-- Support for 70+ file types (code, docs, images, config, archives)
-- File preview with metadata (size, lines, type)
-- File tree walker for directory browsing
+# Or inside the REPL
+/providers set-key openai sk-...
+/providers set-key anthropic sk-ant-...
+```
 
-### 🧠 10 Core Engines (137 Methods)
+### Supported Providers (15+)
 
-| # | Engine | Methods | Description |
-|---|--------|---------|-------------|
-| 1 | **Memory** | 18 | Persistent facts, user preferences, scoring & decay |
-| 2 | **Skills** | 13 | Reusable workflow templates (5 built-in) |
-| 3 | **Goals** | 11 | Kanban board, priorities, completion tracking |
-| 4 | **Models** | 18 | Multi-provider router (OpenAI, Anthropic, Google, Ollama) |
-| 5 | **Cron** | 15 | Scheduled tasks with interval/cron/ISO scheduling |
-| 6 | **Knowledge** | 11 | TF-IDF search engine, directory indexing |
-| 7 | **Sessions** | 12 | Session recording, checkpoints, history search |
-| 8 | **Web Search** | 9 | DuckDuckGo search, URL content extraction |
-| 9 | **Watchdog** | 19 | URL/file monitoring, heartbeat, nudges |
-| 10 | **Delegation** | 11 | Parallel task execution (up to 3 workers) |
+| Provider | Models | Local? |
+|----------|--------|--------|
+| OpenAI | GPT-4o, GPT-4 Turbo, O1, O3 Mini | No |
+| Anthropic | Claude Sonnet 4, Haiku, Opus 4 | No |
+| Google AI | Gemini 2.5 Pro/Flash, 2.0 Flash | No |
+| Ollama | Llama 3, Mistral, Qwen, DeepSeek | Yes |
+| OpenRouter | 300+ models via single API | No |
+| Groq | Llama 3.3, Mixtral, Gemma | No |
+| Together AI | Llama 3.1 405B, Qwen 2.5 | No |
+| DeepSeek | DeepSeek Chat, Reasoner | No |
+| Mistral AI | Mistral Large/Small, Codestral | No |
+| Cohere | Command R+, Command R | No |
+| Fireworks AI | Llama, DeepSeek | No |
+| Perplexity | Sonar Small/Large | No |
+| xAI | Grok 2, Grok 2 Mini | No |
+| Cerebras | Llama 3.3/3.1 | No |
+| SambaNova | Llama 3.1 405B | No |
 
 ---
 
-## Commands Reference
+## 🎨 Themes
 
-### Testing
-| Command | Description |
-|---------|-------------|
-| `test:web <url>` | Run Playwright web test |
-| `test:mobile <url> [device]` | Mobile device emulation test |
-| `test:desktop <app>` | Desktop application test |
-| `test:cli <command>` | CLI command test |
-| `test:api <url> [method] [data]` | API endpoint test |
-| `test:accessibility <url>` | axe-core accessibility audit |
-| `test:performance <url>` | Lighthouse performance audit |
-| `test:flakiness <url> [n]` | Flakiness detection |
-| `test:visual <url>` | Visual regression test |
+25 built-in themes with live switching:
 
-### Generation & Recording
-| Command | Description |
-|---------|-------------|
-| `generate:assertions <url>` | AI test oracle — auto-generate assertions |
-| `generate:report <file> [fmt]` | Generate JSON/Markdown report |
-| `generate:fix-prompt <file>` | Generate fix prompts from errors |
-| `capture:screenshot <url>` | Capture screenshot |
-| `record:video <url>` | Record video |
-| `record:trace <url> [sec]` | Record session trace (.uthyreplay) |
-| `run:parallel <urls>` | Parallel test execution |
-| `provision <dir>` | Provision test environment |
+```
+cyber       — Classic cyberpunk cyan/magenta
+matrix      — Green-on-black hacker aesthetic
+fire        — Warm orange/red/yellow
+ocean       — Cool blue tones
+neon        — Vibrant pink/cyan
+obsidian    — Dark blue-grey
+neonblast   — Intense neon colors
+forest      — Natural green tones
+amber       — Warm golden amber
+polar       — Cool light blue
+rusted      — Warm rust/copper
+cobalt      — Deep blue
+sepia       — Warm vintage tones
+midnight    — Deep purple/blue
+solarflare  — Intense orange/red
+slate       — Professional grey-blue
+cherry      — Deep red tones
+glacial     — Cool ice blue
+ember       — Warm dark tones
+lavender    — Soft purple
+moss        — Earthy green
+crimson     — Deep red
+desert      — Warm sand tones
+steel       — Industrial grey
+twilight    — Purple/dusk tones
+```
 
-### 🧠 Memory
-| Command | Description |
-|---------|-------------|
-| `memory add <fact>` | Store a persistent memory |
-| `memory list` | List all memories by score |
-| `memory search <query>` | Search memories by keyword |
-| `memory stats` | Memory statistics |
-| `memory remove <id>` | Remove a memory |
-
-### ⚡ Skills
-| Command | Description |
-|---------|-------------|
-| `skill list` | List available workflow skills |
-| `skill load <name>` | Load a skill into context |
-| `skill search <query>` | Search skills by keyword |
-| `skill stats` | Skill statistics |
-
-### 🎯 Goals
-| Command | Description |
-|---------|-------------|
-| `goal add <text>` | Add a new goal |
-| `goal list` | List all goals |
-| `goal done <id>` | Mark goal as completed |
-| `goal kanban` | Visual kanban board |
-| `goal review` | Goal progress summary |
-
-### 🤖 Models
-| Command | Description |
-|---------|-------------|
-| `model list` | List available AI models |
-| `model active` | Show active model |
-| `model set <id>` | Set active model |
-| `model route <type>` | Find best model for task type |
-| `model usage` | Show token usage & cost |
-| `model providers` | List configured providers |
-
-### ⏰ Cron
-| Command | Description |
-|---------|-------------|
-| `cron add <schedule> <command>` | Schedule a recurring task |
-| `cron list` | List all cron jobs |
-| `cron run <id>` | Manually trigger a job |
-| `cron pause <id>` | Pause a job |
-| `cron resume <id>` | Resume a job |
-| `cron remove <id>` | Remove a job |
-| `cron stats` | Cron statistics |
-
-### 📚 Knowledge Base
-| Command | Description |
-|---------|-------------|
-| `kb index <dir>` | Index a directory for search |
-| `kb search <query>` | TF-IDF search across files |
-| `kb stats` | Index statistics |
-| `kb forget <path>` | Remove a file from index |
-| `kb rebuild <dir>` | Rebuild the knowledge index |
-
-### 📝 Sessions
-| Command | Description |
-|---------|-------------|
-| `session list` | List recent sessions |
-| `session search <query>` | Search session history |
-| `session checkpoint <label>` | Save a checkpoint |
-| `session stats` | Session statistics |
-
-### 🌐 Web
-| Command | Description |
-|---------|-------------|
-| `search <query>` | Search the web (DuckDuckGo) |
-| `extract <url>` | Extract text from a URL |
-
-### 👁️ Watchdog
-| Command | Description |
-|---------|-------------|
-| `watch add <url/file>` | Start monitoring a target |
-| `watch list` | List active watches |
-| `watch check` | Check all watches now |
-| `watch heartbeat` | Record activity heartbeat |
-| `watch nudge <message>` | Send a nudge notification |
-| `watch stats` | Watchdog statistics |
-
-### 🔀 Delegation
-| Command | Description |
-|---------|-------------|
-| `delegate <task>` | Delegate a task to a worker |
-| `delegate parallel <t1> \| <t2>` | Run tasks in parallel |
-| `delegate list` | List delegations |
-| `delegate stats` | Delegation statistics |
-
-### 💬 Chat & Files
-| Command | Description |
-|---------|-------------|
-| `chat` | Show chat input panel |
-| `attach <file>` | Attach a file for processing |
-| `files [dir]` | Show file tree of directory |
-| `upload` | Show supported file types |
-
-### Shell
-| Command | Description |
-|---------|-------------|
-| `help` | Show all commands |
-| `about` | About UTHY AGENTIC OS |
-| `themes` | List available themes |
-| `theme <name>` | Change active theme |
-| `social` | Show social media links |
-| `hud` | Refresh the HUD overlay |
-| `clear` | Clear screen |
-| `quit / exit` | Exit UTHY |
+Change themes: `/theme <name>` or `uthy theme <name>`
 
 ---
 
-## Project Structure
+## 🔐 Authentication
+
+Linux-style terminal login:
 
 ```
-uthy-agentic-os/
-├── src/
-│   ├── index.js              # CLI entry point + REPL (50+ commands)
-│   ├── ui.js                 # Banner, 25 themes, HUD overlay, UI helpers
-│   └── modules/
-│       ├── memory.js         # 🧠 Persistent memory engine
-│       ├── skills.js         # ⚡ Skill system with built-in workflows
-│       ├── goals.js          # 🎯 Goal tracker + kanban board
-│       ├── models.js         # 🤖 Multi-model router
-│       ├── cron.js           # ⏰ Scheduled task engine
-│       ├── knowledge.js      # 📚 TF-IDF knowledge base
-│       ├── sessions.js       # 📝 Session recording & search
-│       ├── websearch.js      # 🌐 Web search & URL extraction
-│       ├── watchdog.js       # 👁️ Monitoring & heartbeat
-│       ├── delegation.js     # 🔀 Parallel task delegation
-│       ├── chat.js           # 💬 Chat panel & file upload
-│       ├── flakiness.js      # Flakiness detection & self-healing
-│       ├── parallel.js       # Parallel execution engine
-│       ├── visual_regression.js  # Visual regression testing
-│       ├── oracle.js         # AI test oracle
-│       ├── session_replay.js # Session replay (.uthyreplay)
-│       ├── provisioner.js    # Environment provisioning
-│       ├── web.js            # Web testing
-│       ├── mobile.js         # Mobile testing
-│       ├── desktop.js        # Desktop testing
-│       ├── cli.js            # CLI testing
-│       ├── api.js            # API testing
-│       ├── accessibility.js  # Accessibility testing
-│       ├── performance.js    # Performance testing
-│       ├── evidence.js       # Screenshot & video capture
-│       ├── report.js         # Report generation
-│       └── fix_prompt.js     # Fix prompt generation
-├── tests/                    # Unit tests
-├── examples/                 # Example scripts
-├── docs/                     # Documentation
-└── package.json
+╔═══════════════════════════════════════╗
+║     UTHY OS — Login Required         ║
+╚═══════════════════════════════════════╝
+
+  Username: alice
+  Password: ••••••••
 ```
+
+- SHA-256 hashed passwords
+- Per-user directories (`~/.uthy/users/<name>/`)
+- Per-user settings, themes, history, memory
+- User switching without restart
+- Unlimited local accounts
 
 ---
 
-## Configuration
+## ⚙️ Skills
 
-UTHY stores all data in `~/.uthy/`:
-
-```
-~/.uthy/
-├── config.json           # User preferences (theme, history size)
-├── history               # REPL command history
-├── memory/
-│   └── memory.json       # Persistent memories
-├── skills/               # Skill templates (.md files)
-├── goals/
-│   └── goals.json        # Goal tracker data
-├── models/
-│   └── models.json       # AI model configurations
-├── cron/
-│   ├── jobs.json         # Scheduled jobs
-│   └── logs/             # Per-job execution logs
-├── knowledge/
-│   └── index.json        # TF-IDF knowledge index
-├── sessions/             # Session recordings
-├── webcache/             # Web search result cache
-├── watchdog/
-│   ├── watches.json      # Active monitors
-│   ├── heartbeat.json    # Activity heartbeat
-│   └── nudges.json       # Nudge notifications
-└── delegations/
-    └── history.json      # Delegation history
-```
-
----
-
-## Built-in Skills
+14 built-in skills + auto-generation:
 
 | Skill | Category | Description |
 |-------|----------|-------------|
-| `web-audit` | analysis | Full web audit: accessibility, performance, visual regression |
-| `deploy-check` | deployment | Pre-deployment checklist: tests, build, lint, env vars |
-| `code-review` | analysis | Review code changes: diff analysis, test coverage, style |
-| `api-test` | testing | API endpoint testing: schema, auth, performance, errors |
-| `monitor` | automation | Set up monitoring: uptime, errors, performance baselines |
+| web-search | research | Search the web |
+| code-gen | development | Generate code |
+| file-ops | system | File operations |
+| system-info | system | System information |
+| git-ops | development | Git operations |
+| docker-ops | devops | Docker management |
+| api-test | testing | API testing |
+| data-transform | data | JSON/CSV/YAML transforms |
+| cron-jobs | automation | Scheduled tasks |
+| memory | ai | Persistent memory |
+| theme-manager | customization | Theme management |
+| model-manager | ai | Provider management |
+| user-manager | system | User management |
+| macro-recorder | automation | Command sequences |
+
+### Auto-generate skills
+```
+/skills generate A skill that monitors disk usage and alerts when low
+```
 
 ---
 
-## License
+## 🏗️ Architecture
 
-MIT License - see [LICENSE](LICENSE) for details.
+```
+src/
+├── index.js              # Main entry point & REPL
+├── kernel.js             # Core kernel (event bus, command router, module loader)
+├── providers.js          # AI provider abstraction (15+ providers, 300+ models)
+├── storage.js            # Encrypted storage engine (AES-256-GCM vault)
+├── ui.js                 # Legacy UI (banner, themes, HUD)
+├── engine/
+│   └── renderer.js       # 3D terminal UI engine (25 themes, animations)
+└── modules/
+    ├── skillEngine.js    # Skill registry, sandboxing, versioning
+    ├── auth.js           # Authentication engine
+    ├── memory.js         # Persistent memory
+    ├── goals.js          # Goal tracking
+    ├── cron.js           # Scheduled tasks
+    ├── knowledge.js      # Knowledge engine
+    ├── sessions.js       # Session management
+    ├── websearch.js      # Web search
+    ├── watchdog.js       # Health monitoring
+    ├── delegation.js     # Task delegation
+    ├── config.js         # Configuration manager
+    ├── gateway.js        # API gateway
+    ├── mcp.js            # MCP protocol
+    ├── chat.js           # Chat rendering
+    ├── chatPanel.js      # Chat panel UI
+    ├── animations.js     # Animation system
+    ├── bootAnimation.js  # Boot sequence
+    ├── models.js         # Legacy model router
+    └── ...               # 20+ more modules
+```
 
 ---
 
-## Author
+## 📊 System Requirements
 
-**uthuman & co**
-- Website: [uthuman.com](https://uthuman.com)
-- GitHub: [@uthumany](https://github.com/uthumany)
-- Email: dev@uthuman.com
+- **Node.js** ≥ 18.0.0
+- **Terminal** with ANSI color support (Windows Terminal, iTerm2, GNOME Terminal, etc.)
+- **RAM** ≥ 64MB
+- **Disk** ≥ 50MB
+
+### Supported Platforms
+- Windows 10/11
+- macOS 12+
+- Linux (Ubuntu, Fedora, Arch, etc.)
+- WSL (Windows Subsystem for Linux)
+- Android (Termux)
+- Docker / Podman
+
+---
+
+## 🛠️ Development
+
+```bash
+# Clone
+git clone https://github.com/uthumany/uthy-agentic-os.git
+cd uthy-agentic-os
+
+# Install
+npm install
+
+# Run
+npm start
+
+# Test
+npm test
+
+# Info
+npm run info
+```
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE)
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a PR
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+---
+
+## 🔗 Links
+
+- **GitHub**: [github.com/uthumany/uthy-agentic-os](https://github.com/uthumany/uthy-agentic-os)
+- **npm**: [npmjs.com/package/uthy-os](https://www.npmjs.com/package/uthy-os)
+- **Author**: [uthuman & co](https://uthuman.com)
+
+---
+
+**Built with ❤️ by uthuman & co**

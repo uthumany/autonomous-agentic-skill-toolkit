@@ -1,100 +1,79 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## v2.0.0 — UTHY OS (2026-06-03)
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Major Release — Complete Architecture Rewrite
 
-## [0.2.0] - 2026-06-01
+**Uthy OS** is now a full terminal-native AI operating system.
 
-### Added
+### New Core Architecture
+- **Kernel** (`src/kernel.js`) — Event-driven command router, module lifecycle manager, process manager, and system bus
+- **Provider System** (`src/providers.js`) — 15+ AI providers with 300+ models, unified interface, fallback chains, rate limiting
+- **Storage Engine** (`src/storage.js`) — AES-256-GCM encrypted vault, per-user isolation, API key management, import/export
+- **3D Renderer** (`src/engine/renderer.js`) — 25 themes, 20 spinners, box drawing, tables, charts, gauges, animations
+- **Skill Engine** (`src/modules/skillEngine.js`) — 14 built-in skills, auto-generation, sandboxing, versioning, permissions
 
-#### Improvements
+### New Features
+- 15+ AI provider integrations (OpenAI, Anthropic, Google, Ollama, OpenRouter, Groq, Together, DeepSeek, Mistral, Cohere, Fireworks, Perplexity, xAI, Cerebras, SambaNova)
+- 25 cyberpunk themes with live switching
+- 3D animated boot sequence with engine checklist
+- Multi-user authentication with per-user isolation
+- AES-256 encrypted API key vault
+- Per-user persistent memory, config, history, skills
+- Command autocomplete and fuzzy matching
+- Natural language input routing to AI
+- Macro recording and replay
+- User profile import/export
+- Rich terminal UI (boxes, tables, charts, gauges, spinners, progress bars)
+- Wave, glitch, gradient, and particle animation effects
+- System status dashboard
+- Watchdog health monitoring
+- Gateway and MCP protocol support
+- 14 built-in skills with auto-generation
+- Skill search, enable/disable, and permission system
+- Provider hot-swap and fallback routing
+- Offline-first operation
 
-1. **Smart Test Flakiness Detection & Self-Healing** (`src/modules/flakiness.js`)
-   - Runs each test case multiple times across identical environments
-   - Compares pass/fail outcomes, execution timing, and DOM selector resolution
-   - Calculates flakiness score per test (0 = stable, 1 = completely flaky)
-   - Self-healing strategies: CSS-to-data-testid selector swapping, dynamic wait injection (networkidle/domcontentloaded), exponential backoff retry
-   - Generates stabilization patch recommendations
-   - CLI: `aast test:flakiness <url> --iterations 5 --heal`
+### Commands Added
+- `/providers` — Manage AI providers and API keys
+- `/providers models` — List all available models
+- `/providers set-key` — Set API key for a provider
+- `/providers usage` — View usage statistics
+- `/skills` — Manage skills
+- `/skills search` — Search skills
+- `/skills generate` — Auto-generate skill from description
+- `/skills stats` — Skill statistics
+- `/memory save/get/list` — Persistent memory management
+- `/config get/set/list` — Configuration management
+- `/profile export/import` — User profile backup/restore
+- `/system info/env` — System information
+- `/animate wave|glitch|gradient` — Animation demos
+- `/history` — Command history
+- `/watchdog` — Watchdog status
+- `/gateway` — Gateway status
+- `/mcp` — MCP server status
 
-2. **Parallel Execution Engine with Resource Pooling** (`src/modules/parallel.js`)
-   - Central dispatcher with live browser/viewport/device resource pool
-   - Task queue with priority-based scheduling
-   - Worker management with resource affinity (browser, mobile, desktop)
-   - Automatic crash detection and browser context respawn
-   - Resource cap enforcement per worker to prevent memory exhaustion
-   - Real-time result streaming with unified report generation
-   - CLI: `aast run:parallel <testSuiteDir> --workers 4 --urls "url1,url2,url3"`
+### Architecture
+- Modular kernel with event bus
+- Provider abstraction layer
+- Encrypted storage with per-user isolation
+- Plugin-based skill engine
+- Responsive terminal UI engine
+- Graceful degradation (works without AI providers)
 
-3. **Intelligent Baseline Comparison for Visual Regression** (`src/modules/visual_regression.js`)
-   - Baseline screenshot library tagged by viewport, device, and OS
-   - Perceptual diff pipeline: pixel-level comparison + block-based structural similarity index
-   - Three-bucket categorization: expected dynamic content, acceptable noise (anti-aliasing), critical regressions
-   - Critical regressions block the pipeline; acceptable differences flagged for review
-   - Multi-viewport testing with configurable device configurations
-   - CLI: `aast test:visual <url> --update-baseline` / `aast visual:update-baseline <url>`
+### Dependencies
+- Reduced to `commander` only (removed heavy optional deps from base install)
 
-#### Features
+---
 
-4. **AI-Powered Test Oracle & Assertion Generator** (`src/modules/oracle.js`)
-   - Exploratory crawl recording: DOM mutations, API response schemas, user interaction sequences
-   - Heuristic invariant inference engine:
-     - API status/schema invariants (endpoint always returns X, consistent schema)
-     - Form invariants (required fields, action/method patterns)
-     - Page structure invariants (headings, enabled buttons)
-     - Accessibility invariants (missing alt text, missing H1)
-     - Error invariants (API errors, console errors)
-     - Content invariants (blank pages, broken images)
-   - Auto-generates executable test scripts in the toolkit's native format
-   - Confidence scoring per assertion with configurable threshold
-   - CLI: `aast generate:assertions <url> --min-confidence 0.5`
+## v1.8.0 (2026-06-01)
 
-5. **Cross-Platform Session Replay with DOM State Serialization** (`src/modules/session_replay.js`)
-   - Full-fidelity trace capture: serialized DOM snapshots, HAR-style network logs, console/error streams, performance timeline
-   - `.aastreplay` compressed file format (gzip JSON)
-   - Browser-based replay viewer with:
-     - Timeline scrubbing with keyboard shortcuts (←→ Space)
-     - DOM element overlay visualization
-     - Network request/response inspection
-     - Console log viewer with error highlighting
-     - Performance metrics panel (navigation timing, paint, resources)
-     - Auto-play with configurable speed
-   - CLI: `aast record:trace <url> -d 10` / `aast replay:view <trace.aastreplay>`
-
-6. **Dynamic Environment Provisioning with Infrastructure-as-Test-Code** (`src/modules/provisioner.js`)
-   - Reads `environment.yaml` manifest (services, stubs, seeds, network)
-   - Docker container management: pull, run, port mapping, env injection
-   - Health check verification (HTTP endpoint + TCP port)
-   - WireMock/Mountebank stub support
-   - SQL/Script seed execution
-   - Cascading teardown with container log archiving
-   - `.env` file generation for test runners
-   - Dry-run mode for manifest validation
-   - CLI: `aast provision <testDir>` / `aast provision --dry-run <testDir>` / `aast provision:teardown`
-
-### Changed
-
-- Upgraded `package.json` to version 0.2.0
-- Added new dependencies: `pngjs` (visual regression PNG handling), `js-yaml` (YAML manifest parsing)
-- Updated CLI with 10 new commands across all 6 new modules
-- Added 64 unit tests across 17 test suites
-
-## [0.1.0] - 2026-05-31
-
-### Added
-
-- Initial release with core testing modules
-- Web testing (Playwright chromium)
-- Mobile testing (WebKit device emulation)
-- Desktop testing (placeholder)
-- CLI testing (child_process exec)
-- API testing (axios HTTP requests)
-- Accessibility testing (axe-core integration)
-- Performance testing (Lighthouse)
-- Screenshot capture and video recording
-- Report generation (JSON/Markdown)
-- Fix prompt generation
-- CLI interface via Commander.js
-- GitHub Actions CI workflow
+- 25 themes
+- Interactive REPL with HUD
+- Chat panel with file upload
+- Boot animation
+- Auth system
+- Memory, Skills, Goals, Models, Cron engines
+- MCP, Gateway, Delegation
+- Flakiness detection, parallel testing, visual regression
+- Session replay, environment provisioning

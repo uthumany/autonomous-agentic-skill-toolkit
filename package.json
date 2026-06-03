@@ -1,7 +1,7 @@
 {
-  "name": "uthy-agentic-os",
-  "version": "1.8.0",
-  "description": "UTHY AGENTIC OS — Interactive CLI with cyberpunk HUD, chat interface, file upload, and 25 themes. The autonomous agentic operating system by uthuman & co.",
+  "name": "uthy-os",
+  "version": "2.0.0",
+  "description": "UTHY OS — Terminal-Native AI Operating System. Cyberpunk terminal UI, 300+ AI providers, skill engine, multi-user auth, encrypted storage. By uthuman & co.",
   "main": "src/index.js",
   "bin": {
     "uthy": "src/index.js"
@@ -10,16 +10,16 @@
     "start": "node src/index.js",
     "shell": "node src/index.js shell",
     "test": "node --test tests/*.test.js",
-    "test:flakiness": "node src/index.js test:flakiness https://example.com --iterations 3",
-    "test:visual": "node src/index.js test:visual https://example.com --update-baseline",
-    "generate:assertions": "node src/index.js generate:assertions https://example.com",
-    "record:trace": "node src/index.js record:trace https://example.com -d 5",
-    "provision": "node src/index.js provision ./tests"
+    "info": "node src/index.js info",
+    "providers": "node src/index.js providers",
+    "skills": "node src/index.js skills",
+    "themes": "node src/index.js themes"
   },
   "keywords": [
     "uthy",
-    "agentic",
     "os",
+    "terminal",
+    "ai",
     "cli",
     "interactive",
     "repl",
@@ -27,36 +27,37 @@
     "hud",
     "chat",
     "themes",
-    "testing",
     "automation",
-    "web",
-    "mobile",
-    "desktop",
-    "flakiness",
-    "parallel",
-    "visual-regression",
-    "session-replay",
-    "provisioning",
-    "test-oracle",
-    "mcp",
-    "file-upload"
+    "providers",
+    "openai",
+    "anthropic",
+    "ollama",
+    "skills",
+    "memory",
+    "multi-user",
+    "encrypted",
+    "local-first",
+    "open-source"
   ],
   "author": "uthuman & co",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uthumany/uthy-agentic-os"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "commander": "^12.0.0",
-    "playwright": "^1.44.0",
-    "axios": "^1.6.0",
-    "axe-core": "^4.9.1",
-    "lighthouse": "^11.0.0",
-    "chrome-launcher": "^1.0.0",
-    "pngjs": "^7.0.0",
-    "js-yaml": "^4.1.0"
+    "commander": "^12.0.0"
   },
   "devDependencies": {
     "prettier": "^3.2.0"
-  }
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
 }
